@@ -19,12 +19,13 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomConfigPda,
   getAtomStatsPda,
+  getRegistryAuthorityPda,
   getRegistryProgram,
 } from "./utils/helpers";
-import { generateClientHash } from "./utils/attack-helpers";
 import * as fs from "fs";
 
 // Reduced funding per client to fit within budget
@@ -199,6 +200,7 @@ describe("ATOM Intensive Scale Tests", function() {
   let registryConfigPda: PublicKey;
   let collectionPubkey: PublicKey;
   let atomConfigPda: PublicKey;
+  let registryAuthorityPda: PublicKey;
 
   const allFundedKeypairs: Keypair[] = [];
   const registeredAgents: { mint: PublicKey; agentPda: PublicKey; statsPda: PublicKey }[] = [];
@@ -215,14 +217,12 @@ describe("ATOM Intensive Scale Tests", function() {
 
     [rootConfigPda] = getRootConfigPda(registryProgram.programId);
     [atomConfigPda] = getAtomConfigPda();
+    [registryAuthorityPda] = getRegistryAuthorityPda(registryProgram.programId);
 
     const rootAccountInfo = await provider.connection.getAccountInfo(rootConfigPda);
     const rootConfig = registryProgram.coder.accounts.decode("rootConfig", rootAccountInfo!.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = registryProgram.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, registryProgram.programId);
 
     console.log(`Collection: ${collectionPubkey.toString()}`);
   });
@@ -259,6 +259,7 @@ describe("ATOM Intensive Scale Tests", function() {
         await registryProgram.methods
           .register(`https://scale.test/agent-${i}`)
           .accounts({
+            rootConfig: rootConfigPda,
             registryConfig: registryConfigPda,
             agentAccount: agentPda,
             asset: agentKeypair.publicKey,
@@ -336,13 +337,14 @@ describe("ATOM Intensive Scale Tests", function() {
           try {
             await registryProgram.methods
               .giveFeedback(
+                new anchor.BN(score),
+                0,
                 score,
+                null,
                 "scale",
                 "test",
                 "https://scale.test/api",
-                `https://scale.test/fb/${agentIdx}-${i}`,
-                Array.from(generateClientHash(client)),
-                new anchor.BN(i)
+                `https://scale.test/fb/${agentIdx}-${i}`
               )
               .accounts({
                 client: client.publicKey,
@@ -352,6 +354,7 @@ describe("ATOM Intensive Scale Tests", function() {
                 atomConfig: atomConfigPda,
                 atomStats: agent.statsPda,
                 atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+                registryAuthority: registryAuthorityPda,
                 systemProgram: SystemProgram.programId,
               })
               .signers([client])
@@ -458,15 +461,17 @@ describe("ATOM Intensive Scale Tests", function() {
       const startTime = Date.now();
 
       const promises = concurrentClients.map((client, i) => {
+        const score = 80 + (i % 20);
         return registryProgram.methods
           .giveFeedback(
-            80 + (i % 20),
+            new anchor.BN(score),
+            0,
+            score,
+            null,
             "concurrent",
             "test",
             "https://concurrent.test/api",
-            `https://concurrent.test/fb/${i}`,
-            Array.from(generateClientHash(client)),
-            new anchor.BN(1000 + i)
+            `https://concurrent.test/fb/${i}`
           )
           .accounts({
             client: client.publicKey,
@@ -476,6 +481,7 @@ describe("ATOM Intensive Scale Tests", function() {
             atomConfig: atomConfigPda,
             atomStats: agent.statsPda,
             atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+            registryAuthority: registryAuthorityPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([client])
@@ -522,6 +528,7 @@ describe("ATOM Intensive Scale Tests", function() {
       await registryProgram.methods
         .register("https://progression.test/agent")
         .accounts({
+          rootConfig: rootConfigPda,
           registryConfig: registryConfigPda,
           agentAccount: agentPda,
           asset: agentKeypair.publicKey,
@@ -562,13 +569,14 @@ describe("ATOM Intensive Scale Tests", function() {
 
         await registryProgram.methods
           .giveFeedback(
-            100, // Perfect score
+            new anchor.BN(100),
+            0,
+            100,
+            null,
             "progression",
             "test",
             "https://progression.test/api",
-            `https://progression.test/fb/${i}`,
-            Array.from(generateClientHash(client)),
-            new anchor.BN(i)
+            `https://progression.test/fb/${i}`
           )
           .accounts({
             client: client.publicKey,
@@ -578,6 +586,7 @@ describe("ATOM Intensive Scale Tests", function() {
             atomConfig: atomConfigPda,
             atomStats: statsPda,
             atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+            registryAuthority: registryAuthorityPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([client])

@@ -14,6 +14,7 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomStatsPda,
   getAtomConfigPda,
@@ -89,11 +90,8 @@ describe("ATOM Attack Vector Tests", () => {
     }
 
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo!.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     // Initialize AtomConfig if needed
     const atomConfigInfo = await provider.connection.getAccountInfo(atomConfigPda);
@@ -131,6 +129,7 @@ describe("ATOM Attack Vector Tests", () => {
     await program.methods
       .register(`https://attack.test/agent/${agent.publicKey.toBase58().slice(0, 8)}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agent.publicKey,
@@ -167,17 +166,16 @@ describe("ATOM Attack Vector Tests", () => {
     score: number,
     index: number
   ): Promise<void> {
-    const clientHash = generateClientHash(client);
-
     await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "attack",
         "test",
         "https://attack.test/api",
-        `https://attack.test/feedback/${index}`,
-        Array.from(clientHash),
-        new anchor.BN(index)
+        `https://attack.test/feedback/${index}`
       )
       .accounts({
         client: client.publicKey,
@@ -2408,17 +2406,16 @@ describe("ATOM Attack Vector Tests", () => {
     score: number,
     index: number
   ): Promise<{ cuUsed: number }> {
-    const clientHash = generateClientHash(client);
-
     const sig = await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "test",
         "attack",
         `endpoint-${index}`,
-        `uri://test/${index}`,
-        Array.from(clientHash),
-        new anchor.BN(index)
+        `uri://test/${index}`
       )
       .accounts({
         client: client.publicKey,

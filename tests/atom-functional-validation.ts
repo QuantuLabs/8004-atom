@@ -14,12 +14,13 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomConfigPda,
   getAtomStatsPda,
+  getRegistryAuthorityPda,
   getRegistryProgram,
 } from "./utils/helpers";
-import { generateClientHash } from "./utils/attack-helpers";
 
 // Theoretical expectations from params.rs
 const THEORY = {
@@ -171,6 +172,7 @@ describe("ATOM Functional Validation", function() {
   let registryConfigPda: PublicKey;
   let collectionPubkey: PublicKey;
   let atomConfigPda: PublicKey;
+  let registryAuthorityPda: PublicKey;
 
   let testClients: Keypair[] = [];
   let agentCounter = 0;
@@ -186,14 +188,12 @@ describe("ATOM Functional Validation", function() {
     // Get root config
     [rootConfigPda] = getRootConfigPda(registryProgram.programId);
     [atomConfigPda] = getAtomConfigPda();
+    [registryAuthorityPda] = getRegistryAuthorityPda(registryProgram.programId);
 
     const rootAccountInfo = await provider.connection.getAccountInfo(rootConfigPda);
     const rootConfig = registryProgram.coder.accounts.decode("rootConfig", rootAccountInfo!.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = registryProgram.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, registryProgram.programId);
 
     console.log(`Collection: ${collectionPubkey.toString().slice(0, 8)}...`);
 
@@ -218,6 +218,7 @@ describe("ATOM Functional Validation", function() {
     await registryProgram.methods
       .register(`https://functional.test/${name}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agentKeypair.publicKey,
@@ -227,6 +228,18 @@ describe("ATOM Functional Validation", function() {
         mplCoreProgram: MPL_CORE_PROGRAM_ID,
       })
       .signers([agentKeypair])
+      .rpc();
+
+    await atomProgram.methods
+      .initializeStats()
+      .accounts({
+        owner: provider.wallet.publicKey,
+        asset: agentKeypair.publicKey,
+        collection: collectionPubkey,
+        config: atomConfigPda,
+        stats: statsPda,
+        systemProgram: SystemProgram.programId,
+      })
       .rpc();
 
     return { mint: agentKeypair.publicKey, agentPda, statsPda };
@@ -243,13 +256,14 @@ describe("ATOM Functional Validation", function() {
   ): Promise<void> {
     await registryProgram.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "functional",
         "test",
         "https://functional.test/api",
-        `https://functional.test/feedback/${feedbackIdx}`,
-        Array.from(generateClientHash(client)),
-        new anchor.BN(feedbackIdx)
+        `https://functional.test/feedback/${feedbackIdx}`
       )
       .accounts({
         client: client.publicKey,
@@ -259,6 +273,7 @@ describe("ATOM Functional Validation", function() {
         atomConfig: atomConfigPda,
         atomStats: statsPda,
         atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+        registryAuthority: registryAuthorityPda,
         systemProgram: SystemProgram.programId,
       })
       .signers([client])

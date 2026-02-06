@@ -29,6 +29,7 @@ import {
   getAtomStatsPda,
   getAgentPda,
   getRootConfigPda,
+  getRegistryConfigPda,
   getMetadataEntryPda,
   getRegistryAuthorityPda,
   randomHash,
@@ -39,7 +40,6 @@ import {
 import {
   generateDistinctFingerprintKeypairs,
   generateCollidingKeypairs,
-  generateClientHash,
   analyzeHllDistribution,
 } from "./utils/attack-helpers";
 
@@ -152,9 +152,8 @@ describe("ATOM Security Audit v2.5", () => {
     // Get registry config
     [rootConfigPda] = getRootConfigPda(program.programId);
     const rootConfig = await program.account.rootConfig.fetch(rootConfigPda);
-    registryConfigPda = rootConfig.baseRegistry;
-    const registryConfig = await program.account.registryConfig.fetch(registryConfigPda);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     // Get ATOM config
     [atomConfigPda] = getAtomConfigPda(atomEngine.programId);
@@ -233,13 +232,14 @@ describe("ATOM Security Audit v2.5", () => {
       try {
         await program.methods
           .giveFeedback(
-            101, // Invalid score
+            new anchor.BN(101), // Invalid score
+            0,
+            101,
+            null,
             "test",
             "invalid",
             "https://api.example.com",
-            "https://example.com/feedback",
-            Array.from(randomHash()),
-            new anchor.BN(9999)
+            "https://example.com/feedback"
           )
           .accountsPartial({
             client: client.publicKey,
@@ -265,13 +265,14 @@ describe("ATOM Security Audit v2.5", () => {
       try {
         await program.methods
           .giveFeedback(
+            new anchor.BN(80),
+            0,
             80,
+            null,
             "self",
             "feedback",
             "https://api.example.com",
-            "https://example.com/feedback",
-            Array.from(randomHash()),
-            new anchor.BN(9998)
+            "https://example.com/feedback"
           )
           .accountsPartial({
             client: agentOwner.publicKey, // Owner trying to give feedback
@@ -304,13 +305,14 @@ describe("ATOM Security Audit v2.5", () => {
       try {
         await program.methods
           .giveFeedback(
+            new anchor.BN(50),
+            0,
             50,
+            null,
             "test",
             "uri",
             "https://api.example.com",
-            longUri,
-            Array.from(randomHash()),
-            new anchor.BN(9997)
+            longUri
           )
           .accountsPartial({
             client: client.publicKey,
@@ -342,13 +344,14 @@ describe("ATOM Security Audit v2.5", () => {
       try {
         await program.methods
           .giveFeedback(
+            new anchor.BN(50),
+            0,
             50,
+            null,
             longTag,
             "ok",
             "https://api.example.com",
-            "https://example.com/feedback",
-            Array.from(randomHash()),
-            new anchor.BN(9996)
+            "https://example.com/feedback"
           )
           .accountsPartial({
             client: client.publicKey,
@@ -411,13 +414,14 @@ describe("ATOM Security Audit v2.5", () => {
       try {
         await program.methods
           .giveFeedback(
+            new anchor.BN(50),
+            0,
             50,
+            null,
             "test",
             "endpoint",
             longEndpoint,
-            "https://example.com/feedback",
-            Array.from(randomHash()),
-            new anchor.BN(9995)
+            "https://example.com/feedback"
           )
           .accountsPartial({
             client: client.publicKey,
@@ -477,11 +481,9 @@ describe("ATOM Security Audit v2.5", () => {
       allFundedKeypairs.push(client);
       await fundKeypair(provider, client, 0.1 * LAMPORTS_PER_SOL);
 
-      const clientHash = generateClientHash(client);
-
       try {
         await atomEngine.methods
-          .updateStats(Array.from(clientHash), 80)
+          .updateStats(Array.from(randomHash()), 80)
           .accounts({
             payer: client.publicKey,
             asset: agentAsset.publicKey,
@@ -584,18 +586,18 @@ describe("ATOM Security Audit v2.5", () => {
       allFundedKeypairs.push(client);
       await fundKeypair(provider, client, 0.1 * LAMPORTS_PER_SOL);
 
-      const feedbackIndex = new anchor.BN(1000);
       const score = 85;
 
       await program.methods
         .giveFeedback(
+          new anchor.BN(score),
+          0,
           score,
+          null,
           "test",
           "cpi",
           "https://api.example.com",
-          "https://example.com/b4-test",
-          Array.from(randomHash()),
-          feedbackIndex
+          "https://example.com/b4-test"
         )
         .accountsPartial({
           client: client.publicKey,
@@ -732,13 +734,14 @@ describe("ATOM Security Audit v2.5", () => {
 
       await program.methods
         .giveFeedback(
-          95, // High score
+          new anchor.BN(95), // High score
+          0,
+          95,
+          null,
           "positive",
           "test",
           "https://api.example.com",
-          "https://example.com/c1",
-          Array.from(randomHash()),
-          new anchor.BN(1)
+          "https://example.com/c1"
         )
         .accountsPartial({
           client: client.publicKey,
@@ -806,7 +809,7 @@ describe("ATOM Security Audit v2.5", () => {
       await fundKeypair(provider, positiveClient, 0.1 * LAMPORTS_PER_SOL);
 
       await program.methods
-        .giveFeedback(90, "good", "test", "https://api.example.com", "uri", Array.from(randomHash()), new anchor.BN(1))
+        .giveFeedback(new anchor.BN(90), 0, 90, null, "good", "test", "https://api.example.com", "uri")
         .accountsPartial({
           client: positiveClient.publicKey,
           asset: c2Asset.publicKey,
@@ -830,13 +833,14 @@ describe("ATOM Security Audit v2.5", () => {
 
       await program.methods
         .giveFeedback(
-          5, // Very low score
+          new anchor.BN(5), // Very low score
+          0,
+          5,
+          null,
           "negative",
           "test",
           "https://api.example.com",
-          "https://example.com/c2",
-          Array.from(randomHash()),
-          new anchor.BN(2)
+          "https://example.com/c2"
         )
         .accountsPartial({
           client: negativeClient.publicKey,
@@ -909,7 +913,7 @@ describe("ATOM Security Audit v2.5", () => {
       // Give feedback from each
       for (let i = 0; i < clients.length; i++) {
         await program.methods
-          .giveFeedback(70, "hll", "test", "https://api.example.com", "uri", Array.from(randomHash()), new anchor.BN(i))
+          .giveFeedback(new anchor.BN(70), 0, 70, null, "hll", "test", "https://api.example.com", "uri")
           .accountsPartial({
             client: clients[i].publicKey,
             asset: hllAsset.publicKey,
@@ -940,7 +944,7 @@ describe("ATOM Security Audit v2.5", () => {
 
       // First feedback
       await program.methods
-        .giveFeedback(75, "repeat", "test", "https://api.example.com", "uri1", Array.from(randomHash()), new anchor.BN(300))
+        .giveFeedback(new anchor.BN(75), 0, 75, null, "repeat", "test", "https://api.example.com", "uri1")
         .accountsPartial({
           client: repeatClient.publicKey,
           asset: testAgent.publicKey,
@@ -960,7 +964,7 @@ describe("ATOM Security Audit v2.5", () => {
 
       // Second feedback from same client
       await program.methods
-        .giveFeedback(75, "repeat", "test", "https://api.example.com", "uri2", Array.from(randomHash()), new anchor.BN(301))
+        .giveFeedback(new anchor.BN(75), 0, 75, null, "repeat", "test", "https://api.example.com", "uri2")
         .accountsPartial({
           client: repeatClient.publicKey,
           asset: testAgent.publicKey,
@@ -993,7 +997,7 @@ describe("ATOM Security Audit v2.5", () => {
       const recentBefore = [...statsBefore.recentCallers];
 
       await program.methods
-        .giveFeedback(80, "ring", "buffer", "https://api.example.com", "uri", Array.from(randomHash()), new anchor.BN(400))
+        .giveFeedback(new anchor.BN(80), 0, 80, null, "ring", "buffer", "https://api.example.com", "uri")
         .accountsPartial({
           client: client.publicKey,
           asset: testAgent.publicKey,
@@ -1121,10 +1125,9 @@ describe("ATOM Security Audit v2.5", () => {
 
       // First client gives feedback
       const victimClient = clients[0];
-      const victimIndex = new anchor.BN(0);
 
       await program.methods
-        .giveFeedback(90, "victim", "feedback", "https://api.example.com", "uri", Array.from(randomHash()), victimIndex)
+        .giveFeedback(new anchor.BN(90), 0, 90, null, "victim", "feedback", "https://api.example.com", "uri")
         .accountsPartial({
           client: victimClient.publicKey,
           asset: attackAsset.publicKey,
@@ -1142,7 +1145,7 @@ describe("ATOM Security Audit v2.5", () => {
       // ATTACK: Give 34 more feedbacks to push victim out of ring buffer
       for (let i = 1; i < 35; i++) {
         await program.methods
-          .giveFeedback(50, `spam${i}`, "attack", "https://api.example.com", `uri${i}`, Array.from(randomHash()), new anchor.BN(i))
+          .giveFeedback(new anchor.BN(50), 0, 50, null, `spam${i}`, "attack", "https://api.example.com", `uri${i}`)
           .accountsPartial({
             client: clients[i].publicKey,
             asset: attackAsset.publicKey,
@@ -1162,7 +1165,7 @@ describe("ATOM Security Audit v2.5", () => {
       const statsBefore = await atomEngine.account.atomStats.fetch(attackStatsPda);
 
       await program.methods
-        .revokeFeedback(victimIndex)
+        .revokeFeedback()
         .accountsPartial({
           client: victimClient.publicKey,
           asset: attackAsset.publicKey,
@@ -1254,7 +1257,7 @@ describe("ATOM Security Audit v2.5", () => {
 
       for (let i = 0; i < 5; i++) {
         await program.methods
-          .giveFeedback(80, "burst", "test", "https://api.example.com", `uri${i}`, Array.from(randomHash()), new anchor.BN(i))
+          .giveFeedback(new anchor.BN(80), 0, 80, null, "burst", "test", "https://api.example.com", `uri${i}`)
           .accountsPartial({
             client: repeatClient.publicKey,
             asset: burstAsset.publicKey,
@@ -1289,7 +1292,7 @@ describe("ATOM Security Audit v2.5", () => {
       // Send multiple feedbacks in parallel
       const promises = concurrentClients.map((client, i) =>
         program.methods
-          .giveFeedback(70 + i, "concurrent", "test", "https://api.example.com", `uri${i}`, Array.from(randomHash()), new anchor.BN(500 + i))
+          .giveFeedback(new anchor.BN(70 + i), 0, 70 + i, null, "concurrent", "test", "https://api.example.com", `uri${i}`)
           .accountsPartial({
             client: client.publicKey,
             asset: agentAsset.publicKey,
@@ -1346,7 +1349,7 @@ describe("ATOM Security Audit v2.5", () => {
       await fundKeypair(provider, client, 0.1 * LAMPORTS_PER_SOL);
 
       await program.methods
-        .giveFeedback(0, "zero", "score", "https://api.example.com", "https://example.com/e1", Array.from(randomHash()), new anchor.BN(600))
+        .giveFeedback(new anchor.BN(0), 0, 0, null, "zero", "score", "https://api.example.com", "https://example.com/e1")
         .accountsPartial({
           client: client.publicKey,
           asset: agentAsset.publicKey,
@@ -1370,7 +1373,7 @@ describe("ATOM Security Audit v2.5", () => {
       await fundKeypair(provider, client, 0.1 * LAMPORTS_PER_SOL);
 
       await program.methods
-        .giveFeedback(100, "max", "score", "https://api.example.com", "https://example.com/e2", Array.from(randomHash()), new anchor.BN(601))
+        .giveFeedback(new anchor.BN(100), 0, 100, null, "max", "score", "https://api.example.com", "https://example.com/e2")
         .accountsPartial({
           client: client.publicKey,
           asset: agentAsset.publicKey,
@@ -1394,7 +1397,7 @@ describe("ATOM Security Audit v2.5", () => {
       await fundKeypair(provider, client, 0.1 * LAMPORTS_PER_SOL);
 
       await program.methods
-        .giveFeedback(50, "", "", "https://api.example.com", "https://example.com/e3", Array.from(randomHash()), new anchor.BN(602))
+        .giveFeedback(new anchor.BN(50), 0, 50, null, "", "", "https://api.example.com", "https://example.com/e3")
         .accountsPartial({
           client: client.publicKey,
           asset: agentAsset.publicKey,
@@ -1420,7 +1423,7 @@ describe("ATOM Security Audit v2.5", () => {
       const maxTag = "x".repeat(32);
 
       await program.methods
-        .giveFeedback(50, maxTag, maxTag, "https://api.example.com", "https://example.com/e4", Array.from(randomHash()), new anchor.BN(603))
+        .giveFeedback(new anchor.BN(50), 0, 50, null, maxTag, maxTag, "https://api.example.com", "https://example.com/e4")
         .accountsPartial({
           client: client.publicKey,
           asset: agentAsset.publicKey,
@@ -1446,7 +1449,7 @@ describe("ATOM Security Audit v2.5", () => {
       const maxUri = "https://example.com/" + "x".repeat(180);
 
       await program.methods
-        .giveFeedback(50, "max", "uri", "https://api.example.com", maxUri, Array.from(randomHash()), new anchor.BN(604))
+        .giveFeedback(new anchor.BN(50), 0, 50, null, "max", "uri", "https://api.example.com", maxUri)
         .accountsPartial({
           client: client.publicKey,
           asset: agentAsset.publicKey,

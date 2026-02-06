@@ -16,16 +16,17 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomConfigPda,
   getAtomStatsPda,
+  getRegistryAuthorityPda,
   getRegistryProgram,
 } from "./utils/helpers";
 
 import {
   generateDistinctFingerprintKeypairs,
   generateFingerprintCollisionKeypairs,
-  generateClientHash,
   generateRandomClientHashes,
   calculateWhitewashFeedbacks,
   calculateBurstResetUpdates,
@@ -120,6 +121,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
   let registryConfigPda: PublicKey;
   let collectionPubkey: PublicKey;
   let atomConfigPda: PublicKey;
+  let registryAuthorityPda: PublicKey;
 
   // Track all funded keypairs for cleanup
   const allFundedKeypairs: Keypair[] = [];
@@ -127,15 +129,13 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
   before(async () => {
     [rootConfigPda] = getRootConfigPda(program.programId);
     [atomConfigPda] = getAtomConfigPda();
+    [registryAuthorityPda] = getRegistryAuthorityPda(program.programId);
 
     // Get existing config
     const rootAccountInfo = await provider.connection.getAccountInfo(rootConfigPda);
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo!.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     console.log("=== ATOM Stress Tests Setup ===");
     console.log("Provider wallet:", provider.wallet.publicKey.toBase58());
@@ -168,6 +168,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       await program.methods
         .register("https://stress.test/burst-agent")
         .accounts({
+          rootConfig: rootConfigPda,
           registryConfig: registryConfigPda,
           agentAccount: agentPda,
           asset: testAgent.publicKey,
@@ -217,17 +218,17 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       for (let cycle = 0; cycle < cycles; cycle++) {
         for (let w = 0; w < 4; w++) {
           const wallet = attackWallets[w];
-          const clientHash = Array.from(generateClientHash(wallet));
 
           await program.methods
             .giveFeedback(
-              85,  // Good score
+              new anchor.BN(85),
+              0,
+              85,
+              null,
               "burst",
               "test",
               "https://burst.test/api",
-              `https://burst.test/feedback/${feedbackIndex}`,
-              clientHash,
-              new anchor.BN(feedbackIndex)
+              `https://burst.test/feedback/${feedbackIndex}`
             )
             .accounts({
               client: wallet.publicKey,
@@ -237,6 +238,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
               atomConfig: atomConfigPda,
               atomStats: atomStatsPda,
               atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+              registryAuthority: registryAuthorityPda,
               systemProgram: SystemProgram.programId,
             })
             .signers([wallet])
@@ -297,6 +299,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       await program.methods
         .register("https://stress.test/collision-agent")
         .accounts({
+          rootConfig: rootConfigPda,
           registryConfig: registryConfigPda,
           agentAccount: collisionAgentPda,
           asset: collisionAgent.publicKey,
@@ -328,13 +331,14 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
 
         await program.methods
           .giveFeedback(
+            new anchor.BN(80),
+            0,
             80,
+            null,
             "collision",
             "test",
             "https://collision.test/api",
-            `https://collision.test/feedback/${feedbackIdx}`,
-            Array.from(generateClientHash(wallet)),
-            new anchor.BN(feedbackIdx)
+            `https://collision.test/feedback/${feedbackIdx}`
           )
           .accounts({
             client: wallet.publicKey,
@@ -344,6 +348,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
             atomConfig: atomConfigPda,
             atomStats: collisionStatsPda,
             atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+            registryAuthority: registryAuthorityPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([wallet])
@@ -381,6 +386,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       await program.methods
         .register("https://stress.test/wash-agent")
         .accounts({
+          rootConfig: rootConfigPda,
           registryConfig: registryConfigPda,
           agentAccount: washAgentPda,
           asset: washAgent.publicKey,
@@ -416,13 +422,14 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       // First: give a score of 0 (very bad)
       await program.methods
         .giveFeedback(
-          0,  // Bad score
+          new anchor.BN(0),
+          0,
+          0,
+          null,
           "bad",
           "service",
           "https://wash.test/api",
-          "https://wash.test/feedback/0",
-          Array.from(generateClientHash(clients[0])),
-          new anchor.BN(0)
+          "https://wash.test/feedback/0"
         )
         .accounts({
           client: clients[0].publicKey,
@@ -432,6 +439,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
           atomConfig: atomConfigPda,
           atomStats: washStatsPda,
           atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+          registryAuthority: registryAuthorityPda,
           systemProgram: SystemProgram.programId,
         })
         .signers([clients[0]])
@@ -447,13 +455,14 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       for (let i = 1; i < numClients; i++) {
         await program.methods
           .giveFeedback(
+            new anchor.BN(washScore),
+            0,
             washScore,
+            null,
             "wash",
             "attempt",
             "https://wash.test/api",
-            `https://wash.test/feedback/${i}`,
-            Array.from(generateClientHash(clients[i])),
-            new anchor.BN(i)
+            `https://wash.test/feedback/${i}`
           )
           .accounts({
             client: clients[i].publicKey,
@@ -463,6 +472,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
             atomConfig: atomConfigPda,
             atomStats: washStatsPda,
             atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+            registryAuthority: registryAuthorityPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([clients[i]])
@@ -539,6 +549,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
         await program.methods
           .register(`https://cabal.test/agent-${i}`)
           .accounts({
+            rootConfig: rootConfigPda,
             registryConfig: registryConfigPda,
             agentAccount: agentPda,
             asset: agents[i].publicKey,
@@ -577,13 +588,14 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
 
           await program.methods
             .giveFeedback(
-              100,  // Perfect score
+              new anchor.BN(100),
+              0,
+              100,
+              null,
               "cabal",
               "collude",
               "https://cabal.test/api",
-              `https://cabal.test/feedback/${feedbackIdx}`,
-              Array.from(generateClientHash(raterOwner)),
-              new anchor.BN(cycle)
+              `https://cabal.test/feedback/${feedbackIdx}`
             )
             .accounts({
               client: raterOwner.publicKey,
@@ -593,6 +605,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
               atomConfig: atomConfigPda,
               atomStats: statsPdas[targetAgentIdx],
               atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+              registryAuthority: registryAuthorityPda,
               systemProgram: SystemProgram.programId,
             })
             .signers([raterOwner])
@@ -641,6 +654,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       await program.methods
         .register("https://wash.test/agent-1")
         .accounts({
+          rootConfig: rootConfigPda,
           registryConfig: registryConfigPda,
           agentAccount: agent1Pda,
           asset: agent1.publicKey,
@@ -669,6 +683,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       await program.methods
         .register("https://wash.test/agent-2")
         .accounts({
+          rootConfig: rootConfigPda,
           registryConfig: registryConfigPda,
           agentAccount: agent2Pda,
           asset: agent2.publicKey,
@@ -701,13 +716,14 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
         // Owner1 → Agent2
         await program.methods
           .giveFeedback(
+            new anchor.BN(95),
+            0,
             95,
+            null,
             "wash",
             "trade",
             "https://wash.test/api",
-            `https://wash.test/feedback/${i * 2}`,
-            Array.from(generateClientHash(owner1)),
-            new anchor.BN(i)
+            `https://wash.test/feedback/${i * 2}`
           )
           .accounts({
             client: owner1.publicKey,
@@ -717,6 +733,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
             atomConfig: atomConfigPda,
             atomStats: stats2Pda,
             atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+            registryAuthority: registryAuthorityPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([owner1])
@@ -725,13 +742,14 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
         // Owner2 → Agent1
         await program.methods
           .giveFeedback(
+            new anchor.BN(95),
+            0,
             95,
+            null,
             "wash",
             "trade",
             "https://wash.test/api",
-            `https://wash.test/feedback/${i * 2 + 1}`,
-            Array.from(generateClientHash(owner2)),
-            new anchor.BN(i)
+            `https://wash.test/feedback/${i * 2 + 1}`
           )
           .accounts({
             client: owner2.publicKey,
@@ -741,6 +759,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
             atomConfig: atomConfigPda,
             atomStats: stats1Pda,
             atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+            registryAuthority: registryAuthorityPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([owner2])
@@ -784,6 +803,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       await program.methods
         .register("https://scale.test/agent")
         .accounts({
+          rootConfig: rootConfigPda,
           registryConfig: registryConfigPda,
           agentAccount: scaleAgentPda,
           asset: scaleAgent.publicKey,
@@ -819,15 +839,17 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
       // Send all feedbacks with minimal delay
       const promises: Promise<string>[] = [];
       for (let i = 0; i < 10; i++) {
+        const score = 70 + (i % 30);
         const promise = program.methods
           .giveFeedback(
-            70 + (i % 30),  // Varied scores
+            new anchor.BN(score),
+            0,
+            score,
+            null,
             "scale",
             "test",
             "https://scale.test/api",
-            `https://scale.test/feedback/${i}`,
-            Array.from(generateClientHash(scaleClients[i])),
-            new anchor.BN(i)
+            `https://scale.test/feedback/${i}`
           )
           .accounts({
             client: scaleClients[i].publicKey,
@@ -837,6 +859,7 @@ describe("ATOM Stress Tests - Attack Vectors", () => {
             atomConfig: atomConfigPda,
             atomStats: scaleStatsPda,
             atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+            registryAuthority: registryAuthorityPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([scaleClients[i]])

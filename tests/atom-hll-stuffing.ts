@@ -25,6 +25,7 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomStatsPda,
   getAtomConfigPda,
@@ -67,11 +68,8 @@ describe("ATOM HLL Bucket Stuffing", () => {
     }
 
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     console.log("=== HLL Bucket Stuffing Attack Test ===");
     console.log("Collection:", collectionPubkey.toBase58());
@@ -94,6 +92,7 @@ describe("ATOM HLL Bucket Stuffing", () => {
     await program.methods
       .register(`https://hll-test.local/agent/${agent.publicKey.toBase58().slice(0, 8)}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agent.publicKey,
@@ -127,20 +126,18 @@ describe("ATOM HLL Bucket Stuffing", () => {
     asset: PublicKey,
     agentPda: PublicKey,
     statsPda: PublicKey,
-    score: number,
-    index: number
+    score: number
   ): Promise<void> {
-    const clientHash = generateClientHash(client);
-
     await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "hll",
         "stuff",
         "https://hll-test.local/api",
-        `https://hll-test.local/fb/${index}`,
-        Array.from(clientHash),
-        new anchor.BN(index)
+        "https://hll-test.local/fb"
       )
       .accounts({
         client: client.publicKey,
@@ -256,7 +253,7 @@ describe("ATOM HLL Bucket Stuffing", () => {
       const initClient = Keypair.generate();
       await fundKeypair(provider, initClient, FUND_AMOUNT);
       allFundedKeypairs.push(initClient);
-      await giveFeedback(initClient, agent.agent.publicKey, agent.agentPda, agent.statsPda, 100, 0);
+      await giveFeedback(initClient, agent.agent.publicKey, agent.agentPda, agent.statsPda, 100);
     });
 
     it("should show hll_salt is readable on-chain", async () => {
@@ -290,7 +287,7 @@ describe("ATOM HLL Bucket Stuffing", () => {
       const initClient = Keypair.generate();
       await fundKeypair(provider, initClient, FUND_AMOUNT);
       allFundedKeypairs.push(initClient);
-      await giveFeedback(initClient, agent.agent.publicKey, agent.agentPda, agent.statsPda, 100, 0);
+      await giveFeedback(initClient, agent.agent.publicKey, agent.agentPda, agent.statsPda, 100);
 
       // Read the salt
       const stats = await getStats(agent.statsPda);
@@ -321,8 +318,7 @@ describe("ATOM HLL Bucket Stuffing", () => {
           agent.agent.publicKey,
           agent.agentPda,
           agent.statsPda,
-          100,
-          i + 1
+          100
         );
 
         if ((i + 1) % 10 === 0) {
@@ -385,8 +381,7 @@ describe("ATOM HLL Bucket Stuffing", () => {
           agentRandom.agent.publicKey,
           agentRandom.agentPda,
           agentRandom.statsPda,
-          100,
-          i
+          100
         );
       }
 
