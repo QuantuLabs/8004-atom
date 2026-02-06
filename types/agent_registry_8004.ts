@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/agent_registry_8004.json`.
  */
 export type AgentRegistry8004 = {
-  "address": "8oo4SbcgjRBAXjmGU4YMcdFqfeLLrtn7n6f358PkAc3N",
+  "address": "8oo48pya1SZD23ZhzoNMhxR2UGb8BRa41Su4qP9EuaWm",
   "metadata": {
     "name": "agentRegistry8004",
     "version": "0.5.2",
