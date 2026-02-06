@@ -113,8 +113,8 @@ pub mod atom_engine {
     }
 
     /// Update config parameters (authority only)
-    /// NOTE: compute.rs currently uses compile-time params; config is metadata-only until wired.
-    /// SECURITY: Added parameter bounds validation
+    /// Config values are passed to compute::update_stats() at runtime.
+    /// Compile-time defaults in params.rs are used only for initialization.
     pub fn update_config(
         ctx: Context<UpdateConfig>,
         // EMA Parameters
