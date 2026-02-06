@@ -25,6 +25,7 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomStatsPda,
   getAtomConfigPda,
@@ -35,7 +36,7 @@ import {
   sleep,
   getRegistryProgram,
 } from "./utils/helpers";
-import { generateClientHash, generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
+import { generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
 
 // Constants from atom-engine/src/params.rs
 const ENTROPY_GATE_DIVISOR = 3;
@@ -69,11 +70,8 @@ describe("ATOM Entropy Gate Backfire", () => {
     }
 
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     console.log("=== Entropy Gate Backfire Test ===");
     console.log("Collection:", collectionPubkey.toBase58());
@@ -96,6 +94,7 @@ describe("ATOM Entropy Gate Backfire", () => {
     await program.methods
       .register(`https://entropy-test.local/${name}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agent.publicKey,

@@ -85,13 +85,6 @@ console.log("Quality Score:", summary.qualityScore);
 console.log("Unique Clients:", summary.uniqueClients.toNumber());
 ```
 
-## Security
-
-- **52 fixes** implemented (F01-F102)
-- **58 accepted risks** (ROI < 1)
-- **0 open vulnerabilities**
-- **6 consecutive clean audits** (Hivemind: GPT-5.2 + Gemini 3 Pro)
-
 ## Related
 
 - [8004-solana](https://github.com/QuantuLabs/8004-solana) - Agent Registry using ATOM via CPI

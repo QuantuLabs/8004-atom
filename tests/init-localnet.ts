@@ -1,9 +1,9 @@
 /**
  * Initialize Localnet for Testing
- * Must be run FIRST before other tests to set up ATOM engine
+ * Must be run FIRST before other tests to set up both programs.
  *
- * NOTE: Agent Registry is cloned from devnet, so it's already initialized.
- * We only need to initialize ATOM Engine for local testing.
+ * Agent Registry is deployed from target/deploy/ (local binary).
+ * ATOM Engine is built locally. Both need initialization.
  */
 import * as anchor from "@coral-xyz/anchor";
 import { Program, BN } from "@coral-xyz/anchor";
@@ -18,31 +18,23 @@ import {
   getRootConfigPda,
   getRegistryConfigPda,
   getAtomConfigPda,
-  getValidationConfigPda,
+  getRegistryProgram,
 } from "./utils/helpers";
 
-// Registry program ID (cloned from devnet)
-const REGISTRY_PROGRAM_ID = new PublicKey("8oo4SbcgjRBAXjmGU4YMcdFqfeLLrtn7n6f358PkAc3N");
-
-/**
- * Get the registry program from IDL (since it's cloned, not in workspace)
- */
-function getRegistryProgram(provider: anchor.AnchorProvider): Program<AgentRegistry8004> {
-  const idl = require("../idl/agent_registry_8004.json");
-  return new anchor.Program(idl, provider) as unknown as Program<AgentRegistry8004>;
-}
+const BPF_LOADER_UPGRADEABLE = new PublicKey("BPFLoaderUpgradeab1e11111111111111111111111");
 
 describe("Initialize Localnet", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
-  // ATOM Engine is in our workspace
+  // ATOM Engine is in workspace
   const atomEngine = anchor.workspace.AtomEngine as Program<AtomEngine>;
 
-  // Registry is cloned from devnet, load via IDL
+  // Registry is deployed locally (not in workspace, loaded via IDL)
   const registry = getRegistryProgram(provider);
 
   let rootConfigPda: PublicKey;
+  let collectionKeypair: Keypair;
 
   before(async () => {
     console.log("\n=== Localnet Initialization ===");
@@ -51,39 +43,57 @@ describe("Initialize Localnet", () => {
     console.log("ATOM Engine ID:", atomEngine.programId.toBase58());
 
     [rootConfigPda] = getRootConfigPda(registry.programId);
-
-    // Registry is cloned from devnet - check if it exists
-    const accountInfo = await provider.connection.getAccountInfo(rootConfigPda);
-    if (accountInfo !== null) {
-      console.log("Registry cloned from devnet - already initialized");
-      try {
-        const rootConfig = await registry.account.rootConfig.fetch(rootConfigPda);
-        console.log("Current base registry:", rootConfig.baseRegistry.toBase58());
-      } catch (e) {
-        console.log("Could not fetch root config (may be cloned but accounts differ)");
-      }
-    } else {
-      console.log("Warning: Registry not found - ensure devnet clone is working");
-    }
+    collectionKeypair = Keypair.generate();
   });
 
-  it("Check Registry is cloned from devnet", async () => {
-    // Registry should be cloned from devnet
+  it("Initialize Agent Registry (if needed)", async () => {
     const accountInfo = await provider.connection.getAccountInfo(rootConfigPda);
-    if (accountInfo === null) {
-      console.log("Registry not found - localnet may not have cloned it properly");
-      console.log("Tests that require registry CPI will fail");
+    if (accountInfo !== null) {
+      console.log("Registry already initialized - skipping");
+      const rootConfig = await registry.account.rootConfig.fetch(rootConfigPda);
+      console.log("  Base Collection:", rootConfig.baseCollection.toBase58());
       return;
     }
 
-    console.log("Registry program cloned successfully");
+    const [programDataPda] = PublicKey.findProgramAddressSync(
+      [registry.programId.toBuffer()],
+      BPF_LOADER_UPGRADEABLE
+    );
+
+    const [registryConfigPda] = getRegistryConfigPda(
+      collectionKeypair.publicKey,
+      registry.programId
+    );
+
+    console.log("Initializing Agent Registry...");
     console.log("  Root Config PDA:", rootConfigPda.toBase58());
+    console.log("  Registry Config PDA:", registryConfigPda.toBase58());
+    console.log("  Collection:", collectionKeypair.publicKey.toBase58());
+
+    const tx = await registry.methods
+      .initialize()
+      .accounts({
+        rootConfig: rootConfigPda,
+        registryConfig: registryConfigPda,
+        collection: collectionKeypair.publicKey,
+        authority: provider.wallet.publicKey,
+        programData: programDataPda,
+        systemProgram: SystemProgram.programId,
+        mplCoreProgram: MPL_CORE_PROGRAM_ID,
+      })
+      .signers([collectionKeypair])
+      .rpc();
+
+    console.log("Registry initialized:", tx);
+
+    const rootConfig = await registry.account.rootConfig.fetch(rootConfigPda);
+    expect(rootConfig.authority.toBase58()).to.equal(provider.wallet.publicKey.toBase58());
+    console.log("  Base Collection:", rootConfig.baseCollection.toBase58());
   });
 
   it("Initialize ATOM Engine (if needed)", async () => {
     const [atomConfigPda] = getAtomConfigPda(atomEngine.programId);
 
-    // Check if already initialized
     const accountInfo = await provider.connection.getAccountInfo(atomConfigPda);
     if (accountInfo !== null) {
       console.log("ATOM Engine already initialized - skipping");
@@ -105,7 +115,6 @@ describe("Initialize Localnet", () => {
 
     console.log("ATOM Initialize tx:", tx);
 
-    // Verify initialization
     const atomConfig = await atomEngine.account.atomConfig.fetch(atomConfigPda);
     expect(atomConfig.authority.toBase58()).to.equal(provider.wallet.publicKey.toBase58());
     expect(atomConfig.agentRegistryProgram.toBase58()).to.equal(registry.programId.toBase58());
@@ -116,26 +125,28 @@ describe("Initialize Localnet", () => {
   it("Display final state", async () => {
     console.log("\n=== Final Localnet State ===");
 
-    // Root Config (from cloned registry)
-    try {
-      const rootConfig = await registry.account.rootConfig.fetch(rootConfigPda);
-      console.log("\nRoot Config (cloned from devnet):");
-      console.log("  Authority:", rootConfig.authority.toBase58());
-      console.log("  Base Registry:", rootConfig.baseRegistry.toBase58());
-    } catch (e) {
-      console.log("\nRoot Config: Not available (clone may have failed)");
-    }
+    // Root Config
+    const rootConfig = await registry.account.rootConfig.fetch(rootConfigPda);
+    console.log("\nRoot Config:");
+    console.log("  Authority:", rootConfig.authority.toBase58());
+    console.log("  Base Collection:", rootConfig.baseCollection.toBase58());
+
+    // Registry Config
+    const [registryConfigPda] = getRegistryConfigPda(
+      rootConfig.baseCollection,
+      registry.programId
+    );
+    const registryConfig = await registry.account.registryConfig.fetch(registryConfigPda);
+    console.log("\nRegistry Config:");
+    console.log("  Collection:", registryConfig.collection.toBase58());
+    console.log("  Authority:", registryConfig.authority.toBase58());
 
     // ATOM Config
     const [atomConfigPda] = getAtomConfigPda(atomEngine.programId);
-    try {
-      const atomConfig = await atomEngine.account.atomConfig.fetch(atomConfigPda);
-      console.log("\nATOM Config:");
-      console.log("  Authority:", atomConfig.authority.toBase58());
-      console.log("  Agent Registry Program:", atomConfig.agentRegistryProgram.toBase58());
-    } catch (e) {
-      console.log("\nATOM Config: Not initialized");
-    }
+    const atomConfig = await atomEngine.account.atomConfig.fetch(atomConfigPda);
+    console.log("\nATOM Config:");
+    console.log("  Authority:", atomConfig.authority.toBase58());
+    console.log("  Agent Registry Program:", atomConfig.agentRegistryProgram.toBase58());
 
     console.log("\n=== Localnet Ready for Testing ===\n");
   });
