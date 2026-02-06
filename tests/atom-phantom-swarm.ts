@@ -27,6 +27,7 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomStatsPda,
   getAtomConfigPda,
@@ -36,7 +37,7 @@ import {
   returnFunds,
   getRegistryProgram,
 } from "./utils/helpers";
-import { generateClientHash, generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
+import { generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
 
 const RING_BUFFER_SIZE = 24;
 const BURST_INCREMENT = 2;  // From params.rs
@@ -68,11 +69,8 @@ describe("V35 Phantom Swarm Attack", () => {
     }
 
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     console.log("=== V35 Phantom Swarm Attack Test ===");
     console.log("Collection:", collectionPubkey.toBase58());
@@ -94,6 +92,7 @@ describe("V35 Phantom Swarm Attack", () => {
     await program.methods
       .register(`https://phantom-swarm.test/agent/${agent.publicKey.toBase58().slice(0, 8)}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agent.publicKey,
@@ -126,20 +125,18 @@ describe("V35 Phantom Swarm Attack", () => {
     asset: PublicKey,
     agentPda: PublicKey,
     statsPda: PublicKey,
-    score: number,
-    index: number
+    score: number
   ): Promise<void> {
-    const clientHash = generateClientHash(client);
-
     await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "phantom",
         "swarm",
         "https://phantom.test/api",
-        `https://phantom.test/feedback/${index}`,
-        Array.from(clientHash),
-        new anchor.BN(index)
+        "https://phantom.test/feedback"
       )
       .accounts({
         client: client.publicKey,
@@ -193,9 +190,8 @@ describe("V35 Phantom Swarm Attack", () => {
     it("Phase 1: Fill ring buffer quickly to trigger MRT", async () => {
       console.log("\n--- Phase 1: Fill ring buffer ---");
 
-      let feedbackIndex = 0;
       for (const filler of fillerWallets) {
-        await giveFeedback(filler, agent.publicKey, agentPda, statsPda, 80, feedbackIndex++);
+        await giveFeedback(filler, agent.publicKey, agentPda, statsPda, 80);
       }
 
       const stats = await getStats(statsPda);
@@ -216,7 +212,7 @@ describe("V35 Phantom Swarm Attack", () => {
       console.log(`Bypass count before: ${bypassBefore}`);
 
       // Attacker's first negative feedback
-      await giveFeedback(attacker, agent.publicKey, agentPda, statsPda, 0, RING_BUFFER_SIZE);
+      await giveFeedback(attacker, agent.publicKey, agentPda, statsPda, 0);
 
       const statsAfter = await getStats(statsPda);
       console.log(`Burst pressure after: ${statsAfter.burstPressure}`);
@@ -240,7 +236,7 @@ describe("V35 Phantom Swarm Attack", () => {
       console.log(`Quality before: ${qualityBefore}`);
 
       // Attacker's SECOND negative feedback - SAME WALLET
-      await giveFeedback(attacker, agent.publicKey, agentPda, statsPda, 0, RING_BUFFER_SIZE + 1);
+      await giveFeedback(attacker, agent.publicKey, agentPda, statsPda, 0);
 
       const statsAfter = await getStats(statsPda);
       console.log(`Burst pressure after 2nd attack: ${statsAfter.burstPressure}`);
@@ -276,9 +272,8 @@ describe("V35 Phantom Swarm Attack", () => {
       console.log(`Starting neg pressure: ${statsBefore.negPressure}`);
 
       // Attacker sends 10 more negative feedbacks from SAME wallet
-      let feedbackIndex = RING_BUFFER_SIZE + 2;
       for (let i = 0; i < 10; i++) {
-        await giveFeedback(attacker, agent.publicKey, agentPda, statsPda, 0, feedbackIndex++);
+        await giveFeedback(attacker, agent.publicKey, agentPda, statsPda, 0);
       }
 
       const statsAfter = await getStats(statsPda);

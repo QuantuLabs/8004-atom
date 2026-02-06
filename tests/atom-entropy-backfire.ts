@@ -131,17 +131,16 @@ describe("ATOM Entropy Gate Backfire", () => {
     score: number,
     index: number
   ): Promise<void> {
-    const clientHash = generateClientHash(client);
-
     await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "entropy",
         "test",
         "https://entropy-test.local/api",
-        `https://entropy-test.local/fb/${index}`,
-        Array.from(clientHash),
-        new anchor.BN(index)
+        `https://entropy-test.local/fb/${index}`
       )
       .accounts({
         client: client.publicKey,

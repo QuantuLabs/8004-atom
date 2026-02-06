@@ -71,11 +71,8 @@ describe("ATOM Iron Dome Attack", () => {
     }
 
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     console.log("=== Iron Dome Attack Test ===");
     console.log("Collection:", collectionPubkey.toBase58());
@@ -98,6 +95,7 @@ describe("ATOM Iron Dome Attack", () => {
     await program.methods
       .register(`https://iron-dome.test/agent/${agent.publicKey.toBase58().slice(0, 8)}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agent.publicKey,
@@ -131,20 +129,18 @@ describe("ATOM Iron Dome Attack", () => {
     asset: PublicKey,
     agentPda: PublicKey,
     statsPda: PublicKey,
-    score: number,
-    index: number
+    score: number
   ): Promise<void> {
-    const clientHash = generateClientHash(client);
-
     await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "iron",
         "dome",
         "https://iron-dome.test/api",
-        `https://iron-dome.test/feedback/${index}`,
-        Array.from(clientHash),
-        new anchor.BN(index)
+        "https://iron-dome.test/feedback"
       )
       .accounts({
         client: client.publicKey,
@@ -180,7 +176,8 @@ describe("ATOM Iron Dome Attack", () => {
   }
 
   // Helper to compute fingerprint (matches secure_fp56)
-  function computeFingerprint(clientHash: Uint8Array, asset: PublicKey): bigint {
+  function computeFingerprint(clientPubkey: PublicKey, asset: PublicKey): bigint {
+    const clientHash = crypto.createHash("sha256").update(clientPubkey.toBytes()).digest();
     const data = Buffer.alloc(80);
     data.write("ATOM_FEEDBACK_V1", 0);
     asset.toBuffer().copy(data, 16);
@@ -232,9 +229,8 @@ describe("ATOM Iron Dome Attack", () => {
     it("should fill ring buffer with 24 Sybil positive feedbacks", async () => {
       console.log("\n--- Filling ring buffer with Sybil wallets ---");
 
-      let feedbackIndex = 0;
       for (const sybil of sybilWallets) {
-        await giveFeedback(sybil, agent.publicKey, agentPda, statsPda, 100, feedbackIndex++);
+        await giveFeedback(sybil, agent.publicKey, agentPda, statsPda, 100);
       }
 
       const stats = await getStats(statsPda);
@@ -267,11 +263,9 @@ describe("ATOM Iron Dome Attack", () => {
       console.log(`Quality before attacks: ${qualityBefore}`);
       console.log(`Bypass count before: ${bypassBefore}`);
 
-      let feedbackIndex = RING_BUFFER_SIZE;
-
       // First 10 victims should get bypassed (MRT_MAX_BYPASS = 10)
       for (let i = 0; i < 10; i++) {
-        await giveFeedback(victimWallets[i], agent.publicKey, agentPda, statsPda, 0, feedbackIndex++);
+        await giveFeedback(victimWallets[i], agent.publicKey, agentPda, statsPda, 0);
 
         const stats = await getStats(statsPda);
         console.log(`  Victim ${i+1}: bypass_count=${stats.bypassCount}, quality=${stats.qualityScore}`);
@@ -285,8 +279,7 @@ describe("ATOM Iron Dome Attack", () => {
       // Check ring buffer - victim fingerprints should NOT be there
       let victimFingerprintsFound = 0;
       for (let i = 0; i < 10; i++) {
-        const victimHash = generateClientHash(victimWallets[i]);
-        const victimFp = computeFingerprint(victimHash, agent.publicKey);
+        const victimFp = computeFingerprint(victimWallets[i].publicKey, agent.publicKey);
 
         for (const entry of statsAfter10.recentCallers) {
           const decoded = decodeRingEntry(entry);
@@ -308,11 +301,9 @@ describe("ATOM Iron Dome Attack", () => {
     it("should show 11th+ victims forcing eviction (MRT_MAX_BYPASS exceeded)", async () => {
       console.log("\n--- Testing beyond MRT_MAX_BYPASS limit ---");
 
-      let feedbackIndex = RING_BUFFER_SIZE + 10;
-
       // Victims 11-15 should force eviction
       for (let i = 10; i < 15; i++) {
-        await giveFeedback(victimWallets[i], agent.publicKey, agentPda, statsPda, 0, feedbackIndex++);
+        await giveFeedback(victimWallets[i], agent.publicKey, agentPda, statsPda, 0);
 
         const stats = await getStats(statsPda);
         console.log(`  Victim ${i+1}: bypass_count=${stats.bypassCount}, cursor=${stats.evictionCursor}`);
@@ -334,8 +325,7 @@ describe("ATOM Iron Dome Attack", () => {
 
         // Check if it's a victim
         for (let i = 10; i < 15; i++) {
-          const hash = generateClientHash(victimWallets[i]);
-          const fp = computeFingerprint(hash, agent.publicKey);
+          const fp = computeFingerprint(victimWallets[i].publicKey, agent.publicKey);
           if (decoded.fp56 === fp) {
             victimFpCount++;
             break;

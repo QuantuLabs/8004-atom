@@ -13,15 +13,16 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomStatsPda,
   getAtomConfigPda,
   fundKeypair,
   fundKeypairs,
   returnFunds,
+  getRegistryAuthorityPda,
   getRegistryProgram,
 } from "./utils/helpers";
-import { generateClientHash } from "./utils/attack-helpers";
 
 describe("ATOM Massive Scale Tests", () => {
   const provider = anchor.AnchorProvider.env();
@@ -34,6 +35,7 @@ describe("ATOM Massive Scale Tests", () => {
   let registryConfigPda: PublicKey;
   let collectionPubkey: PublicKey;
   let atomConfigPda: PublicKey;
+  let registryAuthorityPda: PublicKey;
 
   const allFundedKeypairs: Keypair[] = [];
   const FUND_AMOUNT = 0.05 * LAMPORTS_PER_SOL;
@@ -41,14 +43,12 @@ describe("ATOM Massive Scale Tests", () => {
   before(async () => {
     [rootConfigPda] = getRootConfigPda(program.programId);
     [atomConfigPda] = getAtomConfigPda();
+    [registryAuthorityPda] = getRegistryAuthorityPda(program.programId);
 
     const rootAccountInfo = await provider.connection.getAccountInfo(rootConfigPda);
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo!.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     console.log("=== ATOM Massive Scale Tests ===");
     console.log("Provider:", provider.wallet.publicKey.toBase58());
@@ -72,6 +72,7 @@ describe("ATOM Massive Scale Tests", () => {
     await program.methods
       .register(`https://scale.test/agent/${agent.publicKey.toBase58().slice(0, 8)}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agent.publicKey,
@@ -110,13 +111,14 @@ describe("ATOM Massive Scale Tests", () => {
   ): Promise<void> {
     await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "scale",
         "test",
         "https://scale.test/api",
-        `https://scale.test/fb/${index}`,
-        Array.from(generateClientHash(client)),
-        new anchor.BN(index)
+        `https://scale.test/fb/${index}`
       )
       .accounts({
         client: client.publicKey,
@@ -126,6 +128,7 @@ describe("ATOM Massive Scale Tests", () => {
         atomConfig: atomConfigPda,
         atomStats: statsPda,
         atomEngineProgram: ATOM_ENGINE_PROGRAM_ID,
+        registryAuthority: registryAuthorityPda,
         systemProgram: SystemProgram.programId,
       })
       .signers([client])

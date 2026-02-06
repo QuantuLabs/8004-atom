@@ -28,6 +28,7 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomStatsPda,
   getAtomConfigPda,
@@ -37,7 +38,7 @@ import {
   returnFunds,
   getRegistryProgram,
 } from "./utils/helpers";
-import { generateClientHash, generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
+import { generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
 
 // Constants from atom-engine/src/params.rs
 const ALPHA_QUALITY_UP = 5;
@@ -72,11 +73,8 @@ describe("ATOM Asymmetric Griefing", () => {
     }
 
     const rootConfig = program.coder.accounts.decode("rootConfig", rootAccountInfo.data);
-    registryConfigPda = rootConfig.baseRegistry;
-
-    const registryAccountInfo = await provider.connection.getAccountInfo(registryConfigPda);
-    const registryConfig = program.coder.accounts.decode("registryConfig", registryAccountInfo!.data);
-    collectionPubkey = registryConfig.collection;
+    collectionPubkey = rootConfig.baseCollection;
+    [registryConfigPda] = getRegistryConfigPda(collectionPubkey, program.programId);
 
     console.log("=== Asymmetric Griefing Attack Test ===");
     console.log("Collection:", collectionPubkey.toBase58());
@@ -99,6 +97,7 @@ describe("ATOM Asymmetric Griefing", () => {
     await program.methods
       .register(`https://grief-test.local/${name}`)
       .accounts({
+        rootConfig: rootConfigPda,
         registryConfig: registryConfigPda,
         agentAccount: agentPda,
         asset: agent.publicKey,
@@ -132,20 +131,18 @@ describe("ATOM Asymmetric Griefing", () => {
     asset: PublicKey,
     agentPda: PublicKey,
     statsPda: PublicKey,
-    score: number,
-    index: number
+    score: number
   ): Promise<void> {
-    const clientHash = generateClientHash(client);
-
     await program.methods
       .giveFeedback(
+        new anchor.BN(score),
+        0,
         score,
+        null,
         "grief",
         "test",
         "https://grief-test.local/api",
-        `https://grief-test.local/fb/${index}`,
-        Array.from(clientHash),
-        new anchor.BN(index)
+        "https://grief-test.local/fb"
       )
       .accounts({
         client: client.publicKey,
@@ -197,7 +194,7 @@ describe("ATOM Asymmetric Griefing", () => {
       // First, give 10 positive feedbacks to establish baseline
       console.log("\nGiving 10 positive feedbacks (score=100)...");
       for (let i = 0; i < 10; i++) {
-        await giveFeedback(positiveClients[i], agent.agent.publicKey, agent.agentPda, agent.statsPda, 100, i);
+        await giveFeedback(positiveClients[i], agent.agent.publicKey, agent.agentPda, agent.statsPda, 100);
       }
 
       const statsAfterPositive = await getStats(agent.statsPda);
@@ -206,7 +203,7 @@ describe("ATOM Asymmetric Griefing", () => {
       // Give 2 negative feedbacks
       console.log("\nGiving 2 negative feedbacks (score=0)...");
       for (let i = 0; i < 2; i++) {
-        await giveFeedback(negativeClients[i], agent.agent.publicKey, agent.agentPda, agent.statsPda, 0, 10 + i);
+        await giveFeedback(negativeClients[i], agent.agent.publicKey, agent.agentPda, agent.statsPda, 0);
       }
 
       const statsAfterNegative = await getStats(agent.statsPda);
@@ -217,7 +214,6 @@ describe("ATOM Asymmetric Griefing", () => {
       // Now give more positives to recover
       console.log("\nGiving positives to recover...");
       let recoveryCount = 0;
-      let feedbackIdx = 12;
 
       while (
         statsAfterNegative.qualityScore < statsAfterPositive.qualityScore &&
@@ -228,8 +224,7 @@ describe("ATOM Asymmetric Griefing", () => {
           agent.agent.publicKey,
           agent.agentPda,
           agent.statsPda,
-          100,
-          feedbackIdx++
+          100
         );
         recoveryCount++;
 
@@ -272,7 +267,7 @@ describe("ATOM Asymmetric Griefing", () => {
       allFundedKeypairs.push(...builders);
 
       for (let i = 0; i < 50; i++) {
-        await giveFeedback(builders[i], goldAgent.agent.publicKey, goldAgent.agentPda, goldAgent.statsPda, 100, i);
+        await giveFeedback(builders[i], goldAgent.agent.publicKey, goldAgent.agentPda, goldAgent.statsPda, 100);
       }
 
       const stats = await getStats(goldAgent.statsPda);
@@ -299,7 +294,7 @@ describe("ATOM Asymmetric Griefing", () => {
       const qualityHistory: number[] = [statsBefore.qualityScore];
 
       for (let i = 0; i < 20; i++) {
-        await giveFeedback(attackers[i], goldAgent.agent.publicKey, goldAgent.agentPda, goldAgent.statsPda, 0, 50 + i);
+        await giveFeedback(attackers[i], goldAgent.agent.publicKey, goldAgent.agentPda, goldAgent.statsPda, 0);
 
         const stats = await getStats(goldAgent.statsPda);
         qualityHistory.push(stats.qualityScore);
@@ -359,8 +354,8 @@ describe("ATOM Asymmetric Griefing", () => {
       allFundedKeypairs.push(...clients);
 
       for (let i = 0; i < 40; i++) {
-        await giveFeedback(clients[i], agentA.agent.publicKey, agentA.agentPda, agentA.statsPda, 100, i);
-        await giveFeedback(clients[40 + i], agentB.agent.publicKey, agentB.agentPda, agentB.statsPda, 100, i);
+        await giveFeedback(clients[i], agentA.agent.publicKey, agentA.agentPda, agentA.statsPda, 100);
+        await giveFeedback(clients[40 + i], agentB.agent.publicKey, agentB.agentPda, agentB.statsPda, 100);
       }
 
       const statsA = await getStats(agentA.statsPda);
@@ -384,7 +379,7 @@ describe("ATOM Asymmetric Griefing", () => {
 
       let attackCost = 0;
       for (let i = 0; i < 15; i++) {
-        await giveFeedback(sybils[i], agentB.agent.publicKey, agentB.agentPda, agentB.statsPda, 0, 40 + i);
+        await giveFeedback(sybils[i], agentB.agent.publicKey, agentB.agentPda, agentB.statsPda, 0);
         attackCost += 0.00001; // tx fee
       }
 
