@@ -48,6 +48,8 @@ rpc_port = 8899
 [[test.validator.clone]]
 address = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
 
-# Clone Agent Registry from devnet for CPI integration tests
-[[test.validator.clone]]
+# Agent Registry loaded as upgradeable program (needs programData PDA for initialize)
+[[test.genesis]]
 address = "8oo4SbcgjRBAXjmGU4YMcdFqfeLLrtn7n6f358PkAc3N"
+program = "target/deploy/agent_registry_8004.so"
+upgradeable = true

@@ -1,10 +1,20 @@
 /**
  * ATOM Engine Tests - Standalone Program Tests
- * Tests for the atom-engine reputation metrics program
+ * Tests for the atom-engine config and initialization
  *
  * ATOM = Agent Trust On-chain Model
  *
- * v0.4.0: Independent program with CPI interface
+ * NOTE: updateStats/revokeStats require CPI from agent-registry.
+ * Those are tested in the dedicated CPI test files:
+ *   - atom-attack-vectors.ts
+ *   - atom-griefing.ts
+ *   - atom-hll-stuffing.ts
+ *   - atom-iron-dome.ts
+ *   - atom-phantom-swarm.ts
+ *   - atom-security-audit.ts
+ *   - atom-stress-tests.ts
+ *   - atom-functional-validation.ts
+ *   - atom-entropy-backfire.ts
  */
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
@@ -20,7 +30,6 @@ import {
   expectAnchorError,
 } from "./utils/helpers";
 
-// Helper to fund a keypair from the provider wallet
 async function fundKeypair(
   provider: anchor.AnchorProvider,
   keypair: Keypair,
@@ -42,44 +51,21 @@ describe("ATOM Engine Tests (Standalone)", () => {
 
   const program = anchor.workspace.AtomEngine as Program<AtomEngine>;
 
-  // PDAs
   let atomConfigPda: PublicKey;
   let atomConfigBump: number;
-
-  // Test assets
-  let testAsset1: Keypair;
-  let testAsset2: Keypair;
-  let testCollection: Keypair;
-  let atomStatsPda1: PublicKey;
-  let atomStatsPda2: PublicKey;
-
-  // For unauthorized tests
   let unauthorizedUser: Keypair;
 
-  // Fake agent registry program ID (for testing)
   const fakeAgentRegistryProgram = new PublicKey("3GGkAWC3mYYdud8GVBsKXK5QC9siXtFkWVZFYtbueVbC");
 
   before(async () => {
     [atomConfigPda, atomConfigBump] = getAtomConfigPda();
 
-    // Generate test assets
-    testAsset1 = Keypair.generate();
-    testAsset2 = Keypair.generate();
-    testCollection = Keypair.generate();
-    [atomStatsPda1] = getAtomStatsPda(testAsset1.publicKey);
-    [atomStatsPda2] = getAtomStatsPda(testAsset2.publicKey);
-
-    // Generate unauthorized user and fund it
     unauthorizedUser = Keypair.generate();
     await fundKeypair(provider, unauthorizedUser, 0.1 * anchor.web3.LAMPORTS_PER_SOL);
 
     console.log("=== ATOM Engine Tests Setup ===");
     console.log("Program ID:", program.programId.toBase58());
     console.log("AtomConfig PDA:", atomConfigPda.toBase58());
-    console.log("Test Asset 1:", testAsset1.publicKey.toBase58());
-    console.log("Test Asset 2:", testAsset2.publicKey.toBase58());
-    console.log("Test Collection:", testCollection.publicKey.toBase58());
-    console.log("Unauthorized User:", unauthorizedUser.publicKey.toBase58());
   });
 
   // ============================================================================
@@ -90,7 +76,6 @@ describe("ATOM Engine Tests (Standalone)", () => {
       const configInfo = await provider.connection.getAccountInfo(atomConfigPda);
 
       if (!configInfo) {
-        // Config doesn't exist, initialize it
         await program.methods
           .initializeConfig(fakeAgentRegistryProgram)
           .accounts({
@@ -105,7 +90,6 @@ describe("ATOM Engine Tests (Standalone)", () => {
         console.log("AtomConfig already exists, skipping initialization");
       }
 
-      // Verify config was created
       const config = await program.account.atomConfig.fetch(atomConfigPda);
       expect(config.authority.toBase58()).to.equal(provider.wallet.publicKey.toBase58());
       expect(config.paused).to.equal(false);
@@ -125,23 +109,17 @@ describe("ATOM Engine Tests (Standalone)", () => {
 
         throw new Error("Should have failed");
       } catch (error: any) {
-        // Account already initialized - Anchor will reject
         expect(error.toString()).to.include("already in use");
       }
     });
 
     it("initializeConfig() fails for non-authority", async () => {
-      const newConfigPda = PublicKey.findProgramAddressSync(
-        [Buffer.from("atom_config_test")],  // Different seed to avoid collision
-        program.programId
-      )[0];
-
       try {
         await program.methods
           .initializeConfig(fakeAgentRegistryProgram)
           .accounts({
             authority: unauthorizedUser.publicKey,
-            config: atomConfigPda,  // Trying to use existing PDA
+            config: atomConfigPda,
             systemProgram: SystemProgram.programId,
           })
           .signers([unauthorizedUser])
@@ -149,7 +127,6 @@ describe("ATOM Engine Tests (Standalone)", () => {
 
         throw new Error("Should have failed");
       } catch (error: any) {
-        // Seeds constraint will fail because PDA is derived from "atom_config", not user
         expect(error.toString()).to.not.include("Should have failed");
       }
     });
@@ -165,8 +142,8 @@ describe("ATOM Engine Tests (Standalone)", () => {
 
       await program.methods
         .updateConfig(
-          1500,  // alphaFast
-          null,  // alphaSlow (unchanged)
+          15,    // alphaFast (valid: 1-100)
+          null,  // alphaSlow
           null,  // alphaVolatility
           null,  // alphaArrival
           null,  // weightSybil
@@ -188,7 +165,7 @@ describe("ATOM Engine Tests (Standalone)", () => {
         .rpc();
 
       const configAfter = await program.account.atomConfig.fetch(atomConfigPda);
-      expect(configAfter.alphaFast).to.equal(1500);
+      expect(configAfter.alphaFast).to.equal(15);
       expect(configAfter.version).to.equal(versionBefore + 1);
     });
 
@@ -197,7 +174,7 @@ describe("ATOM Engine Tests (Standalone)", () => {
       await program.methods
         .updateConfig(
           null, null, null, null, null, null, null, null, null, null,
-          null, null, null, null, true  // paused = true
+          null, null, null, null, true
         )
         .accounts({
           authority: provider.wallet.publicKey,
@@ -212,7 +189,7 @@ describe("ATOM Engine Tests (Standalone)", () => {
       await program.methods
         .updateConfig(
           null, null, null, null, null, null, null, null, null, null,
-          null, null, null, null, false  // paused = false
+          null, null, null, null, false
         )
         .accounts({
           authority: provider.wallet.publicKey,
@@ -228,7 +205,7 @@ describe("ATOM Engine Tests (Standalone)", () => {
       try {
         await program.methods
           .updateConfig(
-            2000, null, null, null, null, null, null, null, null, null,
+            20, null, null, null, null, null, null, null, null, null,
             null, null, null, null, null
           )
           .accounts({
@@ -240,97 +217,85 @@ describe("ATOM Engine Tests (Standalone)", () => {
 
         throw new Error("Should have failed");
       } catch (error: any) {
-        // Constraint violation: config.authority != unauthorizedUser
         expect(error.toString()).to.include("Error");
       }
     });
-  });
 
-  // ============================================================================
-  // UPDATE STATS TESTS
-  // ============================================================================
-  describe("Update Stats", () => {
-    it("updateStats() creates AtomStats and updates metrics", async () => {
-      const clientHash = Array.from(randomHash());
-      const score = 85;
-
-      await program.methods
-        .updateStats(clientHash, score)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: testAsset1.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: atomStatsPda1,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      const stats = await program.account.atomStats.fetch(atomStatsPda1);
-      expect(stats.feedbackCount.toNumber()).to.equal(1);
-      expect(stats.firstScore).to.equal(score);
-      expect(stats.lastScore).to.equal(score);
-      expect(stats.collection.toBase58()).to.equal(testCollection.publicKey.toBase58());
-      expect(stats.asset.toBase58()).to.equal(testAsset1.publicKey.toBase58());
-
-      console.log("Stats after first feedback:");
-      console.log("  - Feedback count:", stats.feedbackCount.toNumber());
-      console.log("  - EMA fast:", stats.emaScoreFast);
-      console.log("  - EMA slow:", stats.emaScoreSlow);
-      console.log("  - Quality score:", stats.qualityScore);
-      console.log("  - Trust tier:", stats.trustTier);
-    });
-
-    it("updateStats() updates existing stats", async () => {
-      const clientHash2 = Array.from(randomHash());
-      const score2 = 90;
-
-      await program.methods
-        .updateStats(clientHash2, score2)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: testAsset1.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: atomStatsPda1,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      const stats = await program.account.atomStats.fetch(atomStatsPda1);
-      expect(stats.feedbackCount.toNumber()).to.equal(2);
-      expect(stats.lastScore).to.equal(score2);
-      expect(stats.minScore).to.be.lte(stats.maxScore);
-    });
-
-    it("updateStats() fails with invalid score > 100", async () => {
-      const clientHash = Array.from(randomHash());
-
+    it("updateConfig() rejects alpha_fast out of bounds", async () => {
       try {
         await program.methods
-          .updateStats(clientHash, 150)  // Invalid: > 100
+          .updateConfig(
+            0, null, null, null, null, null, null, null, null, null,
+            null, null, null, null, null
+          )
           .accounts({
-            payer: provider.wallet.publicKey,
-            asset: testAsset2.publicKey,
-            collection: testCollection.publicKey,
+            authority: provider.wallet.publicKey,
             config: atomConfigPda,
-            stats: atomStatsPda2,
-            systemProgram: SystemProgram.programId,
           })
           .rpc();
 
         throw new Error("Should have failed");
       } catch (error: any) {
-        expect(error.toString()).to.include("InvalidScore");
+        expect(error.toString()).to.include("InvalidConfigParameter");
       }
     });
 
-    it("updateStats() fails when engine is paused", async () => {
-      // Pause first
+    it("updateConfig() rejects alpha_fast > 100", async () => {
+      try {
+        await program.methods
+          .updateConfig(
+            101, null, null, null, null, null, null, null, null, null,
+            null, null, null, null, null
+          )
+          .accounts({
+            authority: provider.wallet.publicKey,
+            config: atomConfigPda,
+          })
+          .rpc();
+
+        throw new Error("Should have failed");
+      } catch (error: any) {
+        expect(error.toString()).to.include("InvalidConfigParameter");
+      }
+    });
+
+    it("updateConfig() rejects weight_sybil > 50", async () => {
+      try {
+        await program.methods
+          .updateConfig(
+            null, null, null, null, 51, null, null, null, null, null,
+            null, null, null, null, null
+          )
+          .accounts({
+            authority: provider.wallet.publicKey,
+            config: atomConfigPda,
+          })
+          .rpc();
+
+        throw new Error("Should have failed");
+      } catch (error: any) {
+        expect(error.toString()).to.include("InvalidConfigParameter");
+      }
+    });
+
+    it("updateConfig() accepts boundary values", async () => {
       await program.methods
         .updateConfig(
-          null, null, null, null, null, null, null, null, null, null,
-          null, null, null, null, true
+          1,     // alphaFast min
+          100,   // alphaSlow max
+          50,    // alphaVolatility mid
+          null,  // alphaArrival
+          50,    // weightSybil max
+          0,     // weightBurst min
+          null,  // weightStagnation
+          null,  // weightShock
+          null,  // weightVolatility
+          null,  // weightArrival
+          100,   // diversityThreshold max
+          null,  // burstThreshold
+          10000, // shockThreshold max
+          null,  // volatilityThreshold
+          null,  // paused
         )
         .accounts({
           authority: provider.wallet.publicKey,
@@ -338,338 +303,43 @@ describe("ATOM Engine Tests (Standalone)", () => {
         })
         .rpc();
 
-      try {
-        const clientHash = Array.from(randomHash());
-        await program.methods
-          .updateStats(clientHash, 80)
-          .accounts({
-            payer: provider.wallet.publicKey,
-            asset: testAsset2.publicKey,
-            collection: testCollection.publicKey,
-            config: atomConfigPda,
-            stats: atomStatsPda2,
-            systemProgram: SystemProgram.programId,
-          })
-          .rpc();
-
-        throw new Error("Should have failed");
-      } catch (error: any) {
-        expect(error.toString()).to.include("Paused");
-      } finally {
-        // Unpause
-        await program.methods
-          .updateConfig(
-            null, null, null, null, null, null, null, null, null, null,
-            null, null, null, null, false
-          )
-          .accounts({
-            authority: provider.wallet.publicKey,
-            config: atomConfigPda,
-          })
-          .rpc();
-      }
+      const config = await program.account.atomConfig.fetch(atomConfigPda);
+      expect(config.alphaFast).to.equal(1);
+      expect(config.alphaSlow).to.equal(100);
+      expect(config.alphaVolatility).to.equal(50);
+      expect(config.weightSybil).to.equal(50);
+      expect(config.weightBurst).to.equal(0);
+      expect(config.diversityThreshold).to.equal(100);
+      expect(config.shockThreshold).to.equal(10000);
     });
   });
 
   // ============================================================================
-  // GET SUMMARY TESTS
+  // ATOM STATS PDA DERIVATION TESTS
   // ============================================================================
-  describe("Get Summary", () => {
-    it("getSummary() returns correct summary data", async () => {
-      // First ensure we have some stats
-      const stats = await program.account.atomStats.fetch(atomStatsPda1);
-      expect(stats.feedbackCount.toNumber()).to.be.gte(1);
-
-      // Call getSummary via simulate (view function)
-      const summary = await program.methods
-        .getSummary()
-        .accounts({
-          asset: testAsset1.publicKey,
-          stats: atomStatsPda1,
-        })
-        .view();
-
-      expect(summary.asset.toBase58()).to.equal(testAsset1.publicKey.toBase58());
-      expect(summary.collection.toBase58()).to.equal(testCollection.publicKey.toBase58());
-      expect(summary.feedbackCount.toNumber()).to.equal(stats.feedbackCount.toNumber());
-      expect(summary.trustTier).to.equal(stats.trustTier);
-      expect(summary.qualityScore).to.equal(stats.qualityScore);
-      expect(summary.riskScore).to.equal(stats.riskScore);
-
-      console.log("Summary returned:");
-      console.log("  - Trust tier:", summary.trustTier);
-      console.log("  - Quality score:", summary.qualityScore);
-      console.log("  - Risk score:", summary.riskScore);
-      console.log("  - Confidence:", summary.confidence);
-      console.log("  - Feedback count:", summary.feedbackCount.toNumber());
-      console.log("  - Unique clients:", summary.uniqueClients.toNumber());
-    });
-  });
-
-  // ============================================================================
-  // REPLAY BATCH TESTS
-  // ============================================================================
-  describe("Replay Batch", () => {
-    it("replayBatch() replays events (authority only)", async () => {
-      // First create a fresh asset for replay testing
-      const replayAsset = Keypair.generate();
-      const [replayStatsPda] = getAtomStatsPda(replayAsset.publicKey);
-
-      // Initialize stats with first feedback
-      const initialHash = Array.from(randomHash());
-      await program.methods
-        .updateStats(initialHash, 70)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: replayAsset.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: replayStatsPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      // Now replay a batch
-      const replayEvents = [
-        { clientHash: Array.from(randomHash()), score: 80, slot: new anchor.BN(1000) },
-        { clientHash: Array.from(randomHash()), score: 85, slot: new anchor.BN(2000) },
-        { clientHash: Array.from(randomHash()), score: 90, slot: new anchor.BN(3000) },
-      ];
-
-      await program.methods
-        .replayBatch(replayEvents)
-        .accounts({
-          authority: provider.wallet.publicKey,
-          asset: replayAsset.publicKey,
-          config: atomConfigPda,
-          stats: replayStatsPda,
-        })
-        .rpc();
-
-      const stats = await program.account.atomStats.fetch(replayStatsPda);
-      // Initial feedback + 3 replayed = 4 total
-      expect(stats.feedbackCount.toNumber()).to.equal(4);
-      console.log("Replay batch completed, total feedbacks:", stats.feedbackCount.toNumber());
+  describe("PDA Derivation", () => {
+    it("AtomStats PDA is deterministic for same asset", () => {
+      const asset = Keypair.generate();
+      const [pda1] = getAtomStatsPda(asset.publicKey);
+      const [pda2] = getAtomStatsPda(asset.publicKey);
+      expect(pda1.toBase58()).to.equal(pda2.toBase58());
     });
 
-    it("replayBatch() fails for non-authority", async () => {
-      const replayEvents = [
-        { clientHash: Array.from(randomHash()), score: 75, slot: new anchor.BN(1000) },
-      ];
-
-      try {
-        await program.methods
-          .replayBatch(replayEvents)
-          .accounts({
-            authority: unauthorizedUser.publicKey,
-            asset: testAsset1.publicKey,
-            config: atomConfigPda,
-            stats: atomStatsPda1,
-          })
-          .signers([unauthorizedUser])
-          .rpc();
-
-        throw new Error("Should have failed");
-      } catch (error: any) {
-        expect(error.toString()).to.include("Error");
-      }
+    it("AtomStats PDA differs for different assets", () => {
+      const asset1 = Keypair.generate();
+      const asset2 = Keypair.generate();
+      const [pda1] = getAtomStatsPda(asset1.publicKey);
+      const [pda2] = getAtomStatsPda(asset2.publicKey);
+      expect(pda1.toBase58()).to.not.equal(pda2.toBase58());
     });
 
-    it("replayBatch() fails with empty events", async () => {
-      try {
-        await program.methods
-          .replayBatch([])
-          .accounts({
-            authority: provider.wallet.publicKey,
-            asset: testAsset1.publicKey,
-            config: atomConfigPda,
-            stats: atomStatsPda1,
-          })
-          .rpc();
-
-        throw new Error("Should have failed");
-      } catch (error: any) {
-        expect(error.toString()).to.include("InvalidReplayBatch");
-      }
-    });
-  });
-
-  // ============================================================================
-  // STRESS TESTS
-  // ============================================================================
-  describe("Stress Tests", () => {
-    it("handles multiple rapid updates", async () => {
-      const stressAsset = Keypair.generate();
-      const [stressStatsPda] = getAtomStatsPda(stressAsset.publicKey);
-
-      // Fund payer for multiple transactions
-      const stressPayer = Keypair.generate();
-      await fundKeypair(provider, stressPayer, 0.5 * anchor.web3.LAMPORTS_PER_SOL);
-
-      // Send 10 rapid updates
-      const updatePromises: Promise<string>[] = [];
-      for (let i = 0; i < 10; i++) {
-        const clientHash = Array.from(randomHash());
-        const score = 50 + Math.floor(Math.random() * 50);  // 50-99
-
-        const promise = program.methods
-          .updateStats(clientHash, score)
-          .accounts({
-            payer: stressPayer.publicKey,
-            asset: stressAsset.publicKey,
-            collection: testCollection.publicKey,
-            config: atomConfigPda,
-            stats: stressStatsPda,
-            systemProgram: SystemProgram.programId,
-          })
-          .signers([stressPayer])
-          .rpc();
-
-        updatePromises.push(promise);
-
-        // Small delay to avoid transaction collision
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-
-      // Wait for all to complete
-      await Promise.all(updatePromises);
-
-      const stats = await program.account.atomStats.fetch(stressStatsPda);
-      expect(stats.feedbackCount.toNumber()).to.equal(10);
-      console.log("Stress test completed: 10 updates, final count:", stats.feedbackCount.toNumber());
-    });
-  });
-
-  // ============================================================================
-  // METRIC CALCULATION TESTS
-  // ============================================================================
-  describe("Metric Calculations", () => {
-    it("correctly calculates EMA scores", async () => {
-      const emaAsset = Keypair.generate();
-      const [emaStatsPda] = getAtomStatsPda(emaAsset.publicKey);
-
-      // High score first
-      await program.methods
-        .updateStats(Array.from(randomHash()), 100)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: emaAsset.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: emaStatsPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      let stats = await program.account.atomStats.fetch(emaStatsPda);
-      const emaAfter100 = stats.emaScoreFast;
-      console.log("EMA after 100 score:", emaAfter100);
-
-      // Low score second
-      await program.methods
-        .updateStats(Array.from(randomHash()), 0)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: emaAsset.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: emaStatsPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      stats = await program.account.atomStats.fetch(emaStatsPda);
-      const emaAfter0 = stats.emaScoreFast;
-      console.log("EMA after 0 score:", emaAfter0);
-
-      // EMA should have decreased
-      expect(emaAfter0).to.be.lt(emaAfter100);
-    });
-
-    it("correctly tracks min/max scores", async () => {
-      const minMaxAsset = Keypair.generate();
-      const [minMaxStatsPda] = getAtomStatsPda(minMaxAsset.publicKey);
-
-      // Score 50
-      await program.methods
-        .updateStats(Array.from(randomHash()), 50)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: minMaxAsset.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: minMaxStatsPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      let stats = await program.account.atomStats.fetch(minMaxStatsPda);
-      expect(stats.minScore).to.equal(50);
-      expect(stats.maxScore).to.equal(50);
-
-      // Score 30 (new min)
-      await program.methods
-        .updateStats(Array.from(randomHash()), 30)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: minMaxAsset.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: minMaxStatsPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      stats = await program.account.atomStats.fetch(minMaxStatsPda);
-      expect(stats.minScore).to.equal(30);
-      expect(stats.maxScore).to.equal(50);
-
-      // Score 90 (new max)
-      await program.methods
-        .updateStats(Array.from(randomHash()), 90)
-        .accounts({
-          payer: provider.wallet.publicKey,
-          asset: minMaxAsset.publicKey,
-          collection: testCollection.publicKey,
-          config: atomConfigPda,
-          stats: minMaxStatsPda,
-          systemProgram: SystemProgram.programId,
-        })
-        .rpc();
-
-      stats = await program.account.atomStats.fetch(minMaxStatsPda);
-      expect(stats.minScore).to.equal(30);
-      expect(stats.maxScore).to.equal(90);
-      console.log("Min/max tracking: min=", stats.minScore, "max=", stats.maxScore);
-    });
-
-    it("tracks diversity ratio via HLL", async () => {
-      const diversityAsset = Keypair.generate();
-      const [diversityStatsPda] = getAtomStatsPda(diversityAsset.publicKey);
-
-      // 5 unique clients
-      for (let i = 0; i < 5; i++) {
-        await program.methods
-          .updateStats(Array.from(randomHash()), 80)
-          .accounts({
-            payer: provider.wallet.publicKey,
-            asset: diversityAsset.publicKey,
-            collection: testCollection.publicKey,
-            config: atomConfigPda,
-            stats: diversityStatsPda,
-            systemProgram: SystemProgram.programId,
-          })
-          .rpc();
-      }
-
-      const stats = await program.account.atomStats.fetch(diversityStatsPda);
-      expect(stats.feedbackCount.toNumber()).to.equal(5);
-
-      // Diversity ratio should be high (each client is unique)
-      // diversityRatio = (unique_estimate * 255) / count
-      // With 5 unique clients out of 5 feedbacks, ratio should be ~255
-      console.log("Diversity ratio after 5 unique clients:", stats.diversityRatio);
-      expect(stats.diversityRatio).to.be.gte(200);  // Should be high
+    it("AtomConfig PDA uses correct seed", () => {
+      const [pda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("atom_config")],
+        ATOM_ENGINE_PROGRAM_ID
+      );
+      const [helperPda] = getAtomConfigPda();
+      expect(pda.toBase58()).to.equal(helperPda.toBase58());
     });
   });
 });

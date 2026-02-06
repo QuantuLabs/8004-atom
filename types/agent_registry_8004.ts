@@ -133,136 +133,6 @@ export type AgentRegistry8004 = {
       "returns": "pubkey"
     },
     {
-      "name": "createUserRegistry",
-      "docs": [
-        "Create a user registry (anyone can create their own shard)"
-      ],
-      "discriminator": [
-        244,
-        141,
-        67,
-        250,
-        234,
-        104,
-        58,
-        135
-      ],
-      "accounts": [
-        {
-          "name": "collectionAuthority",
-          "docs": [
-            "PDA authority for all user collections"
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  111,
-                  108,
-                  108,
-                  101,
-                  99,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "registryConfig",
-          "docs": [
-            "User registry config"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114,
-                  101,
-                  103,
-                  105,
-                  115,
-                  116,
-                  114,
-                  121,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "collection"
-              }
-            ]
-          }
-        },
-        {
-          "name": "collection",
-          "docs": [
-            "New collection to create (program PDA is authority)"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "owner",
-          "docs": [
-            "User who creates and owns this registry"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "mplCoreProgram",
-          "docs": [
-            "Metaplex Core program"
-          ],
-          "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
-        }
-      ],
-      "args": [
-        {
-          "name": "collectionName",
-          "type": "string"
-        },
-        {
-          "name": "collectionUri",
-          "type": "string"
-        }
-      ]
-    },
-    {
       "name": "deleteMetadataPda",
       "docs": [
         "Delete agent metadata PDA and recover rent (key_hash = SHA256(key)[0..16])"
@@ -566,7 +436,7 @@ export type AgentRegistry8004 = {
     {
       "name": "initialize",
       "docs": [
-        "Initialize the registry with root config and first base registry"
+        "Initialize the registry with root config and base collection"
       ],
       "discriminator": [
         175,
@@ -582,7 +452,7 @@ export type AgentRegistry8004 = {
         {
           "name": "rootConfig",
           "docs": [
-            "Global root config pointing to current base registry"
+            "Global root config"
           ],
           "writable": true,
           "pda": {
@@ -609,7 +479,7 @@ export type AgentRegistry8004 = {
         {
           "name": "registryConfig",
           "docs": [
-            "First base registry config (base #0)"
+            "Base registry config"
           ],
           "writable": true,
           "pda": {
@@ -644,7 +514,7 @@ export type AgentRegistry8004 = {
         {
           "name": "collection",
           "docs": [
-            "First collection (created by CPI to Metaplex Core)"
+            "Base collection (created by CPI to Metaplex Core)"
           ],
           "writable": true,
           "signer": true
@@ -753,151 +623,6 @@ export type AgentRegistry8004 = {
       "args": []
     },
     {
-      "name": "initializeValidationConfig",
-      "docs": [
-        "Initialize the ValidationConfig (global validation registry state)"
-      ],
-      "discriminator": [
-        138,
-        209,
-        223,
-        183,
-        48,
-        227,
-        146,
-        152
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  108,
-                  105,
-                  100,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "authority",
-          "docs": [
-            "Must be the program's upgrade authority"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "programData",
-          "docs": [
-            "Program data account containing upgrade authority"
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  115,
-                  254,
-                  154,
-                  235,
-                  128,
-                  134,
-                  246,
-                  203,
-                  89,
-                  88,
-                  221,
-                  213,
-                  226,
-                  164,
-                  81,
-                  160,
-                  35,
-                  9,
-                  166,
-                  24,
-                  227,
-                  95,
-                  246,
-                  37,
-                  185,
-                  197,
-                  164,
-                  45,
-                  202,
-                  159,
-                  85,
-                  13
-                ]
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                2,
-                168,
-                246,
-                145,
-                78,
-                136,
-                161,
-                176,
-                226,
-                16,
-                21,
-                62,
-                247,
-                99,
-                174,
-                43,
-                0,
-                194,
-                185,
-                61,
-                22,
-                193,
-                36,
-                210,
-                192,
-                83,
-                122,
-                16,
-                4,
-                128,
-                0,
-                0
-              ]
-            }
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": []
-    },
-    {
       "name": "ownerOf",
       "docs": [
         "Get agent owner (cached - may be stale after external transfer)"
@@ -947,7 +672,7 @@ export type AgentRegistry8004 = {
     {
       "name": "register",
       "docs": [
-        "Register agent in a specific registry (base or user)"
+        "Register agent in the base collection"
       ],
       "discriminator": [
         211,
@@ -960,6 +685,32 @@ export type AgentRegistry8004 = {
         240
       ],
       "accounts": [
+        {
+          "name": "rootConfig",
+          "docs": [
+            "Root config to validate base collection"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
         {
           "name": "registryConfig",
           "pda": {
@@ -1024,58 +775,9 @@ export type AgentRegistry8004 = {
         {
           "name": "collection",
           "docs": [
-            "Collection for this registry"
+            "Base collection"
           ],
           "writable": true
-        },
-        {
-          "name": "userCollectionAuthority",
-          "docs": [
-            "Optional: PDA authority for user collections"
-          ],
-          "optional": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  111,
-                  108,
-                  108,
-                  101,
-                  99,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "rootConfig",
-          "docs": [
-            "Optional: Root config for Base registry validation",
-            "Required for Base registries to validate base_registry"
-          ],
-          "optional": true
         },
         {
           "name": "owner",
@@ -1118,6 +820,32 @@ export type AgentRegistry8004 = {
       ],
       "accounts": [
         {
+          "name": "rootConfig",
+          "docs": [
+            "Root config to validate base collection"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "registryConfig",
           "pda": {
             "seeds": [
@@ -1181,58 +909,9 @@ export type AgentRegistry8004 = {
         {
           "name": "collection",
           "docs": [
-            "Collection for this registry"
+            "Base collection"
           ],
           "writable": true
-        },
-        {
-          "name": "userCollectionAuthority",
-          "docs": [
-            "Optional: PDA authority for user collections"
-          ],
-          "optional": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  111,
-                  108,
-                  108,
-                  101,
-                  99,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "rootConfig",
-          "docs": [
-            "Optional: Root config for Base registry validation",
-            "Required for Base registries to validate base_registry"
-          ],
-          "optional": true
         },
         {
           "name": "owner",
@@ -1259,333 +938,6 @@ export type AgentRegistry8004 = {
         {
           "name": "atomEnabled",
           "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "requestValidation",
-      "docs": [
-        "Request validation for an agent"
-      ],
-      "discriminator": [
-        72,
-        26,
-        53,
-        67,
-        228,
-        30,
-        144,
-        53
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "docs": [
-            "ValidationConfig for tracking global counters"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  108,
-                  105,
-                  100,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "requester",
-          "docs": [
-            "Agent owner (requester)"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "payer",
-          "docs": [
-            "Payer for the validation request account (can be different from requester)"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "agentAccount",
-          "docs": [
-            "Agent account (to verify ownership and get asset)"
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  97,
-                  103,
-                  101,
-                  110,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "assetKey"
-              }
-            ]
-          }
-        },
-        {
-          "name": "asset",
-          "docs": [
-            "Agent asset (Metaplex Core)"
-          ]
-        },
-        {
-          "name": "validationRequest",
-          "docs": [
-            "Validation request PDA (to be created)"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  108,
-                  105,
-                  100,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "assetKey"
-              },
-              {
-                "kind": "arg",
-                "path": "validatorAddress"
-              },
-              {
-                "kind": "arg",
-                "path": "nonce"
-              }
-            ]
-          }
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "assetKey",
-          "type": "pubkey"
-        },
-        {
-          "name": "validatorAddress",
-          "type": "pubkey"
-        },
-        {
-          "name": "nonce",
-          "type": "u32"
-        },
-        {
-          "name": "requestUri",
-          "type": "string"
-        },
-        {
-          "name": "requestHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "respondToValidation",
-      "docs": [
-        "Validator responds to a validation request",
-        "ERC-8004: Enables progressive validation - validators can update responses"
-      ],
-      "discriminator": [
-        64,
-        212,
-        244,
-        6,
-        65,
-        134,
-        212,
-        122
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "docs": [
-            "ValidationConfig for tracking global counters"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  108,
-                  105,
-                  100,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "validator",
-          "docs": [
-            "Validator (signer)"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "agentAccount",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  97,
-                  103,
-                  101,
-                  110,
-                  116
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "assetKey"
-              }
-            ]
-          }
-        },
-        {
-          "name": "asset",
-          "docs": [
-            "Agent asset (Metaplex Core)"
-          ]
-        },
-        {
-          "name": "validationRequest",
-          "docs": [
-            "Validation request PDA (existing, to be updated)",
-            "ERC-8004: Enables progressive validation - validators can update responses"
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  118,
-                  97,
-                  108,
-                  105,
-                  100,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "assetKey"
-              },
-              {
-                "kind": "arg",
-                "path": "validatorAddress"
-              },
-              {
-                "kind": "arg",
-                "path": "nonce"
-              }
-            ]
-          }
-        }
-      ],
-      "args": [
-        {
-          "name": "assetKey",
-          "type": "pubkey"
-        },
-        {
-          "name": "validatorAddress",
-          "type": "pubkey"
-        },
-        {
-          "name": "nonce",
-          "type": "u32"
-        },
-        {
-          "name": "response",
-          "type": "u8"
-        },
-        {
-          "name": "responseUri",
-          "type": "string"
-        },
-        {
-          "name": "responseHash",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
-        },
-        {
-          "name": "tag",
-          "type": "string"
         }
       ]
     },
@@ -1793,48 +1145,6 @@ export type AgentRegistry8004 = {
             "Collection account (required by Core for assets in collection)"
           ],
           "writable": true
-        },
-        {
-          "name": "userCollectionAuthority",
-          "docs": [
-            "User collection authority PDA (required for user registries)",
-            "Optional: only needed when registry_type == User"
-          ],
-          "optional": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  111,
-                  108,
-                  108,
-                  101,
-                  99,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
         },
         {
           "name": "owner",
@@ -2163,134 +1473,6 @@ export type AgentRegistry8004 = {
         }
       ],
       "args": []
-    },
-    {
-      "name": "updateUserRegistryMetadata",
-      "docs": [
-        "Update user registry collection metadata (owner only)"
-      ],
-      "discriminator": [
-        121,
-        57,
-        38,
-        142,
-        118,
-        18,
-        204,
-        28
-      ],
-      "accounts": [
-        {
-          "name": "collectionAuthority",
-          "docs": [
-            "PDA authority for signing"
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114,
-                  95,
-                  99,
-                  111,
-                  108,
-                  108,
-                  101,
-                  99,
-                  116,
-                  105,
-                  111,
-                  110,
-                  95,
-                  97,
-                  117,
-                  116,
-                  104,
-                  111,
-                  114,
-                  105,
-                  116,
-                  121
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "name": "registryConfig",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114,
-                  101,
-                  103,
-                  105,
-                  115,
-                  116,
-                  114,
-                  121,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "collection"
-              }
-            ]
-          }
-        },
-        {
-          "name": "collection",
-          "docs": [
-            "Collection to update"
-          ],
-          "writable": true
-        },
-        {
-          "name": "owner",
-          "docs": [
-            "Owner of this user registry"
-          ],
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        },
-        {
-          "name": "mplCoreProgram",
-          "docs": [
-            "Metaplex Core program"
-          ],
-          "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
-        }
-      ],
-      "args": [
-        {
-          "name": "newName",
-          "type": {
-            "option": "string"
-          }
-        },
-        {
-          "name": "newUri",
-          "type": {
-            "option": "string"
-          }
-        }
-      ]
     }
   ],
   "accounts": [
@@ -2345,32 +1527,6 @@ export type AgentRegistry8004 = {
         223,
         246
       ]
-    },
-    {
-      "name": "validationConfig",
-      "discriminator": [
-        169,
-        98,
-        16,
-        22,
-        71,
-        9,
-        255,
-        7
-      ]
-    },
-    {
-      "name": "validationRequest",
-      "discriminator": [
-        130,
-        174,
-        153,
-        111,
-        74,
-        241,
-        40,
-        140
-      ]
     }
   ],
   "events": [
@@ -2388,16 +1544,16 @@ export type AgentRegistry8004 = {
       ]
     },
     {
-      "name": "agentRegisteredInRegistry",
+      "name": "agentRegistered",
       "discriminator": [
-        235,
-        241,
-        87,
-        226,
-        1,
-        223,
-        186,
-        175
+        191,
+        78,
+        217,
+        54,
+        232,
+        100,
+        189,
+        85
       ]
     },
     {
@@ -2411,19 +1567,6 @@ export type AgentRegistry8004 = {
         110,
         74,
         200
-      ]
-    },
-    {
-      "name": "baseRegistryCreated",
-      "discriminator": [
-        135,
-        156,
-        231,
-        228,
-        36,
-        76,
-        0,
-        43
       ]
     },
     {
@@ -2479,6 +1622,19 @@ export type AgentRegistry8004 = {
       ]
     },
     {
+      "name": "registryInitialized",
+      "discriminator": [
+        144,
+        138,
+        62,
+        105,
+        58,
+        38,
+        100,
+        177
+      ]
+    },
+    {
       "name": "responseAppended",
       "discriminator": [
         168,
@@ -2502,45 +1658,6 @@ export type AgentRegistry8004 = {
         84,
         102,
         11
-      ]
-    },
-    {
-      "name": "userRegistryCreated",
-      "discriminator": [
-        245,
-        139,
-        104,
-        155,
-        229,
-        130,
-        152,
-        114
-      ]
-    },
-    {
-      "name": "validationRequested",
-      "discriminator": [
-        133,
-        42,
-        252,
-        198,
-        82,
-        135,
-        183,
-        65
-      ]
-    },
-    {
-      "name": "validationResponded",
-      "discriminator": [
-        93,
-        63,
-        246,
-        101,
-        212,
-        208,
-        53,
-        167
       ]
     },
     {
@@ -2764,44 +1881,9 @@ export type AgentRegistry8004 = {
       "msg": "Ed25519 signature verification failed"
     },
     {
-      "code": 12250,
-      "name": "invalidRegistryType",
-      "msg": "Invalid registry type for this operation"
-    },
-    {
       "code": 12251,
       "name": "rootAlreadyInitialized",
       "msg": "Root config already initialized"
-    },
-    {
-      "code": 12252,
-      "name": "registryAlreadyExists",
-      "msg": "Registry already exists for this collection"
-    },
-    {
-      "code": 12253,
-      "name": "collectionNameTooLong",
-      "msg": "Collection name exceeds maximum length"
-    },
-    {
-      "code": 12254,
-      "name": "collectionUriTooLong",
-      "msg": "Collection URI exceeds maximum length"
-    },
-    {
-      "code": 12255,
-      "name": "registrationNotAllowed",
-      "msg": "Cannot register in this registry"
-    },
-    {
-      "code": 12256,
-      "name": "rootConfigRequired",
-      "msg": "Root config required for Base registry registration"
-    },
-    {
-      "code": 12257,
-      "name": "invalidRootConfig",
-      "msg": "Invalid root config PDA"
     },
     {
       "code": 12300,
@@ -2962,9 +2044,9 @@ export type AgentRegistry8004 = {
       }
     },
     {
-      "name": "agentRegisteredInRegistry",
+      "name": "agentRegistered",
       "docs": [
-        "Event emitted when agent is registered in a specific registry",
+        "Event emitted when agent is registered",
         "Field order: fixed-size first (Pubkey, bool), variable-size last (String)"
       ],
       "type": {
@@ -2972,10 +2054,6 @@ export type AgentRegistry8004 = {
         "fields": [
           {
             "name": "asset",
-            "type": "pubkey"
-          },
-          {
-            "name": "registry",
             "type": "pubkey"
           },
           {
@@ -3011,29 +2089,6 @@ export type AgentRegistry8004 = {
           },
           {
             "name": "enabledBy",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "baseRegistryCreated",
-      "docs": [
-        "Event emitted when a base registry is created"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "registry",
-            "type": "pubkey"
-          },
-          {
-            "name": "collection",
-            "type": "pubkey"
-          },
-          {
-            "name": "createdBy",
             "type": "pubkey"
           }
         ]
@@ -3355,9 +2410,8 @@ export type AgentRegistry8004 = {
     {
       "name": "registryConfig",
       "docs": [
-        "Per-collection registry configuration - Without counters (off-chain via indexer)",
-        "Seeds: [\"registry_config\", collection.key()]",
-        "EVM conformity: counters (total_agents, next_id) computed off-chain"
+        "Registry configuration for the base collection",
+        "Seeds: [\"registry_config\", collection.key()]"
       ],
       "type": {
         "kind": "struct",
@@ -3365,25 +2419,14 @@ export type AgentRegistry8004 = {
           {
             "name": "collection",
             "docs": [
-              "Metaplex Core Collection address (also in seeds)"
+              "Metaplex Core Collection address"
             ],
             "type": "pubkey"
           },
           {
-            "name": "registryType",
-            "docs": [
-              "Registry type: Base (protocol) or User (custom shard)"
-            ],
-            "type": {
-              "defined": {
-                "name": "registryType"
-              }
-            }
-          },
-          {
             "name": "authority",
             "docs": [
-              "Authority (protocol authority for Base, user for User)"
+              "Protocol authority"
             ],
             "type": "pubkey"
           },
@@ -3398,18 +2441,20 @@ export type AgentRegistry8004 = {
       }
     },
     {
-      "name": "registryType",
+      "name": "registryInitialized",
       "docs": [
-        "Registry type - Base (protocol managed) or User (custom shards)"
+        "Event emitted when registry is initialized"
       ],
       "type": {
-        "kind": "enum",
-        "variants": [
+        "kind": "struct",
+        "fields": [
           {
-            "name": "base"
+            "name": "collection",
+            "type": "pubkey"
           },
           {
-            "name": "user"
+            "name": "authority",
+            "type": "pubkey"
           }
         ]
       }
@@ -3487,23 +2532,23 @@ export type AgentRegistry8004 = {
     {
       "name": "rootConfig",
       "docs": [
-        "Root configuration - Global pointer to base registry",
+        "Root configuration - Global registry state",
         "Seeds: [\"root_config\"]"
       ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "baseRegistry",
+            "name": "baseCollection",
             "docs": [
-              "Base registry for new agent registrations"
+              "Base collection for agent registrations"
             ],
             "type": "pubkey"
           },
           {
             "name": "authority",
             "docs": [
-              "Authority (can create base registry)"
+              "Protocol authority"
             ],
             "type": "pubkey"
           },
@@ -3536,226 +2581,6 @@ export type AgentRegistry8004 = {
           },
           {
             "name": "newUri",
-            "type": "string"
-          }
-        ]
-      }
-    },
-    {
-      "name": "userRegistryCreated",
-      "docs": [
-        "Event emitted when a user registry is created"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "registry",
-            "type": "pubkey"
-          },
-          {
-            "name": "collection",
-            "type": "pubkey"
-          },
-          {
-            "name": "owner",
-            "type": "pubkey"
-          }
-        ]
-      }
-    },
-    {
-      "name": "validationConfig",
-      "docs": [
-        "Global validation registry configuration"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "docs": [
-              "Registry authority (program owner)"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "totalRequests",
-            "docs": [
-              "Total validation requests created"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "totalResponses",
-            "docs": [
-              "Total validation responses recorded"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "bump",
-            "docs": [
-              "PDA bump seed"
-            ],
-            "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "validationRequest",
-      "docs": [
-        "Individual validation request (state stored on-chain)",
-        "URIs, tags, hashes (except request_hash), and created_at are stored in events only",
-        "This optimized structure follows ERC-8004 immutability requirements while minimizing rent cost"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "asset",
-            "docs": [
-              "Agent asset (Metaplex Core) - used as primary identifier"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "validatorAddress",
-            "docs": [
-              "Validator address (who can respond)"
-            ],
-            "type": "pubkey"
-          },
-          {
-            "name": "nonce",
-            "docs": [
-              "Nonce for multiple validations from same validator (enables re-validation)"
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "requestHash",
-            "docs": [
-              "Request hash (SHA-256 of request content for integrity verification)"
-            ],
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "response",
-            "docs": [
-              "Current response value (0-100, 0 = pending/no response)",
-              "ERC-8004: 0 is a valid response score, use responded_at to determine pending status"
-            ],
-            "type": "u8"
-          },
-          {
-            "name": "respondedAt",
-            "docs": [
-              "Timestamp of last response (0 if no response yet)",
-              "ERC-8004: Equivalent to lastUpdate, enables progressive validation"
-            ],
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "validationRequested",
-      "docs": [
-        "Event emitted when validation is requested",
-        "Field order optimized for indexing: fixed-size fields first, variable-size (String) last",
-        "ERC-8004: Events store full metadata not kept on-chain for rent optimization"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "asset",
-            "type": "pubkey"
-          },
-          {
-            "name": "validatorAddress",
-            "type": "pubkey"
-          },
-          {
-            "name": "nonce",
-            "type": "u32"
-          },
-          {
-            "name": "requester",
-            "type": "pubkey"
-          },
-          {
-            "name": "requestHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "createdAt",
-            "type": "i64"
-          },
-          {
-            "name": "requestUri",
-            "type": "string"
-          }
-        ]
-      }
-    },
-    {
-      "name": "validationResponded",
-      "docs": [
-        "Event emitted when validator responds",
-        "Field order optimized for indexing: fixed-size fields first, variable-size (String) last",
-        "ERC-8004: Enables progressive validation - validators can update responses"
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "asset",
-            "type": "pubkey"
-          },
-          {
-            "name": "validatorAddress",
-            "type": "pubkey"
-          },
-          {
-            "name": "nonce",
-            "type": "u32"
-          },
-          {
-            "name": "response",
-            "type": "u8"
-          },
-          {
-            "name": "responseHash",
-            "type": {
-              "array": [
-                "u8",
-                32
-              ]
-            }
-          },
-          {
-            "name": "respondedAt",
-            "type": "i64"
-          },
-          {
-            "name": "responseUri",
-            "type": "string"
-          },
-          {
-            "name": "tag",
             "type": "string"
           }
         ]

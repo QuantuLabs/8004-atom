@@ -25,6 +25,7 @@ import {
   MPL_CORE_PROGRAM_ID,
   ATOM_ENGINE_PROGRAM_ID,
   getRootConfigPda,
+  getRegistryConfigPda,
   getAgentPda,
   getAtomStatsPda,
   getAtomConfigPda,
@@ -35,7 +36,7 @@ import {
   sleep,
   getRegistryProgram,
 } from "./utils/helpers";
-import { generateClientHash, generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
+import { generateDistinctFingerprintKeypairs } from "./utils/attack-helpers";
 
 // Constants from atom-engine/src/params.rs
 const RING_BUFFER_SIZE = 24;
