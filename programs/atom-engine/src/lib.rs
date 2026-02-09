@@ -188,7 +188,7 @@ pub mod atom_engine {
             config.diversity_threshold = v;
         }
         if let Some(v) = burst_threshold {
-            // u8 always <= 255, no validation needed
+            require!(v >= 3 && v <= 200, AtomError::InvalidConfigParameter);
             config.burst_threshold = v;
         }
         if let Some(v) = shock_threshold {
@@ -376,7 +376,7 @@ pub mod atom_engine {
 
                 // Apply inverse correction to quality EMA
                 let correction_score: u16 = if score > 50 { 0 } else { 10000 };
-                let dampened_alpha = params::ALPHA_QUALITY_DOWN / 2;
+                let dampened_alpha = ctx.accounts.config.alpha_quality_down as u32 / 2;
                 stats.quality_score = ((dampened_alpha * correction_score as u32
                     + (100 - dampened_alpha) * stats.quality_score as u32) / 100) as u16;
 
@@ -397,7 +397,7 @@ pub mod atom_engine {
 
                 // Apply inverse correction
                 let correction_score: u16 = if score > 50 { 0 } else { 10000 };
-                let dampened_alpha = params::ALPHA_QUALITY_DOWN / 2;
+                let dampened_alpha = ctx.accounts.config.alpha_quality_down as u32 / 2;
                 stats.quality_score = ((dampened_alpha * correction_score as u32
                     + (100 - dampened_alpha) * stats.quality_score as u32) / 100) as u16;
 
