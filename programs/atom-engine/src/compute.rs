@@ -366,7 +366,7 @@ fn update_quality(
 
     let old_quality = stats.quality_score;
     stats.quality_score = ((alpha * quality_delta
-        + (100 - alpha) * stats.quality_score as u32) / 100) as u16;
+        + (100 - alpha) * stats.quality_score as u32) / 100).min(10000) as u16;
 
     // Enforce quality floor during freeze
     if is_frozen && stats.freeze_epochs > 0 {
@@ -382,7 +382,7 @@ fn update_quality(
     if stats.quality_velocity > QUALITY_VELOCITY_THRESHOLD {
         if !is_frozen {
             // New freeze: set floor at 80% of current quality
-            stats.quality_floor = ((stats.quality_score as u32 * 8) / 1000) as u8;
+            stats.quality_floor = ((stats.quality_score as u32 * 80) / 10000) as u8;
         }
         stats.freeze_epochs = QUALITY_FREEZE_EPOCHS;
     }
@@ -443,20 +443,20 @@ fn calculate_raw_tier(stats: &AtomStats, config: &AtomConfig) -> u8 {
     let can_be_bronze = r <= config.tier_bronze_risk && c >= config.tier_bronze_confidence;
 
     if can_be_platinum &&
-        (current == 4 && q >= config.tier_platinum_quality.saturating_sub(h) ||
-         current < 4 && q >= config.tier_platinum_quality.saturating_add(h)) {
+        ((current == 4 && q >= config.tier_platinum_quality.saturating_sub(h)) ||
+         (current < 4 && q >= config.tier_platinum_quality.saturating_add(h))) {
         4
     } else if can_be_gold &&
-        (current >= 3 && q >= config.tier_gold_quality.saturating_sub(h) ||
-         current < 3 && q >= config.tier_gold_quality.saturating_add(h)) {
+        ((current >= 3 && q >= config.tier_gold_quality.saturating_sub(h)) ||
+         (current < 3 && q >= config.tier_gold_quality.saturating_add(h))) {
         3
     } else if can_be_silver &&
-        (current >= 2 && q >= config.tier_silver_quality.saturating_sub(h) ||
-         current < 2 && q >= config.tier_silver_quality.saturating_add(h)) {
+        ((current >= 2 && q >= config.tier_silver_quality.saturating_sub(h)) ||
+         (current < 2 && q >= config.tier_silver_quality.saturating_add(h))) {
         2
     } else if can_be_bronze &&
-        (current >= 1 && q >= config.tier_bronze_quality.saturating_sub(h) ||
-         current < 1 && q >= config.tier_bronze_quality.saturating_add(h)) {
+        ((current >= 1 && q >= config.tier_bronze_quality.saturating_sub(h)) ||
+         (current < 1 && q >= config.tier_bronze_quality.saturating_add(h))) {
         1
     } else {
         0

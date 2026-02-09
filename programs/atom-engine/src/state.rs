@@ -455,16 +455,6 @@ pub fn hll_estimate(hll: &[u8; 128]) -> u64 {
 // Fingerprint for Burst Detection
 // ============================================================================
 
-/// Compute 64-bit fingerprint using Splitmix64 - DEPRECATED, use secure_fp56
-pub fn splitmix64_fp64(pubkey_bytes: &[u8]) -> u64 {
-    let bytes: [u8; 8] = pubkey_bytes[0..8].try_into().unwrap_or([0u8; 8]);
-    let mut z = u64::from_le_bytes(bytes);
-    z = z.wrapping_add(0x9e3779b97f4a7c15);
-    z = (z ^ (z >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
-    z ^ (z >> 31)
-}
-
 // ============================================================================
 // Bit-Packed Ring Buffer for Revoke Support
 // ============================================================================
@@ -624,36 +614,8 @@ pub fn mark_bypass_revoked(bypass_fps: &mut [u64; BYPASS_FP_SIZE], index: usize)
     bypass_fps[index] |= REVOKED_BIT;
 }
 
-/// Update entry in-place if found, otherwise push new entry
-pub fn upsert_caller_entry(recent: &mut [u64; RING_BUFFER_SIZE], cursor: &mut u8, fp56: u64, score: u8) -> bool {
-    if let Some((idx, _old_score, _revoked)) = find_caller_entry(recent, fp56) {
-        recent[idx] = encode_caller_entry(fp56, score, false);
-        true
-    } else {
-        push_caller_encoded(recent, cursor, fp56, score);
-        false
-    }
-}
-
 /// Ring buffer size (requires 25+ wallets to bypass)
 pub const RING_BUFFER_SIZE: usize = 24;
-
-/// Check if fingerprint is in recent callers (constant-time)
-pub fn check_recent_caller(recent: &[u64; RING_BUFFER_SIZE], fp: u64) -> bool {
-    let mut found = false;
-    for &r in recent.iter() {
-        found |= r == fp;
-    }
-    found
-}
-
-/// Push fingerprint to ring buffer (shifts old ones out)
-pub fn push_caller(recent: &mut [u64; RING_BUFFER_SIZE], fp: u64) {
-    for i in (1..RING_BUFFER_SIZE).rev() {
-        recent[i] = recent[i - 1];
-    }
-    recent[0] = fp;
-}
 
 // ============================================================================
 // Helper Functions
