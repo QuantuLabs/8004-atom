@@ -9,6 +9,8 @@ pub mod compute;
 pub mod contexts;
 pub mod error;
 pub mod events;
+#[cfg(kani)]
+mod kani;
 pub mod params;
 pub mod state;
 
@@ -409,6 +411,11 @@ pub mod atom_engine {
             // Not found in ring buffer or bypass buffer - soft fail
             (0, false)
         };
+
+        // Keep derived outputs consistent with corrected quality/confidence values.
+        if had_impact {
+            compute::recompute_derived_metrics(stats, &ctx.accounts.config);
+        }
 
         emit!(StatsRevoked {
             asset: ctx.accounts.asset.key(),

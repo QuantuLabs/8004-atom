@@ -527,6 +527,39 @@ describe("ATOM Security Audit v2.5", () => {
       console.log("  [PASS] B2: Direct revoke_stats call rejected (PDA not signed)");
     });
 
+    it("B2b: should reject signed but invalid registry authority", async () => {
+      const payer = Keypair.generate();
+      const fakeRegistryAuthority = Keypair.generate();
+      allFundedKeypairs.push(payer, fakeRegistryAuthority);
+      await fundKeypairs(provider, [payer, fakeRegistryAuthority], 0.1 * LAMPORTS_PER_SOL);
+
+      try {
+        await atomEngine.methods
+          .updateStats(Array.from(randomHash()), 80)
+          .accounts({
+            payer: payer.publicKey,
+            asset: agentAsset.publicKey,
+            collection: collectionPubkey,
+            config: atomConfigPda,
+            stats: atomStatsPda,
+            registryAuthority: fakeRegistryAuthority.publicKey,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([payer, fakeRegistryAuthority])
+          .rpc();
+        throw new Error("Expected error but transaction succeeded");
+      } catch (e: any) {
+        const err = e.toString().toLowerCase();
+        expect(
+          err.includes("unauthorizedcaller") ||
+            err.includes("unauthorized caller") ||
+            err.includes("custom program error")
+        ).to.equal(true);
+      }
+
+      console.log("  [PASS] B2b: Invalid signed registry authority rejected");
+    });
+
     it("B3: should create AtomStats PDA on initialize_stats", async () => {
       // Create new agent for this test
       const newAsset = Keypair.generate();
@@ -1165,10 +1198,11 @@ describe("ATOM Security Audit v2.5", () => {
       const statsBefore = await atomEngine.account.atomStats.fetch(attackStatsPda);
 
       await program.methods
-        .revokeFeedback()
+        .revokeFeedback(new anchor.BN(0), Array(32).fill(0))
         .accountsPartial({
           client: victimClient.publicKey,
           asset: attackAsset.publicKey,
+          agentAccount: attackAgentPda,
           atomConfig: atomConfigPda,
           atomStats: attackStatsPda,
           atomEngineProgram: atomEngine.programId,
@@ -1319,13 +1353,114 @@ describe("ATOM Security Audit v2.5", () => {
       console.log(`  [PASS] D4: ${succeeded}/5 concurrent feedbacks succeeded`);
     });
 
-    it("D5: should reject paused engine operations", async () => {
-      const config = await atomEngine.account.atomConfig.fetch(atomConfigPda);
+    it("D5: should reject feedback and revoke when engine is paused", async () => {
+      const baselineClient = Keypair.generate();
+      const pausedClient = Keypair.generate();
+      allFundedKeypairs.push(baselineClient, pausedClient);
+      await fundKeypairs(provider, [baselineClient, pausedClient], 0.1 * LAMPORTS_PER_SOL);
 
-      expect(config.paused).to.be.a("boolean");
+      // Ensure not paused before baseline operation.
+      await atomEngine.methods
+        .updateConfig(
+          null, null, null, null, null, null, null, null, null, null,
+          null, null, null, null, false
+        )
+        .accounts({
+          authority: provider.wallet.publicKey,
+          config: atomConfigPda,
+        })
+        .rpc();
+
+      // Baseline feedback succeeds when unpaused.
+      await program.methods
+        .giveFeedback(new anchor.BN(65), 0, 65, null, "baseline", "ok", "https://api.example.com", "pause-baseline")
+        .accountsPartial({
+          client: baselineClient.publicKey,
+          asset: agentAsset.publicKey,
+          collection: collectionPubkey,
+          agentAccount: agentPda,
+          atomConfig: atomConfigPda,
+          atomStats: atomStatsPda,
+          atomEngineProgram: atomEngine.programId,
+          registryAuthority: registryAuthorityPda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([baselineClient])
+        .rpc();
+
+      let pausedEnabled = false;
+      try {
+        await atomEngine.methods
+          .updateConfig(
+            null, null, null, null, null, null, null, null, null, null,
+            null, null, null, null, true
+          )
+          .accounts({
+            authority: provider.wallet.publicKey,
+            config: atomConfigPda,
+          })
+          .rpc();
+        pausedEnabled = true;
+
+        try {
+          await program.methods
+            .giveFeedback(new anchor.BN(70), 0, 70, null, "paused", "feedback", "https://api.example.com", "pause-blocked")
+            .accountsPartial({
+              client: pausedClient.publicKey,
+              asset: agentAsset.publicKey,
+              collection: collectionPubkey,
+              agentAccount: agentPda,
+              atomConfig: atomConfigPda,
+              atomStats: atomStatsPda,
+              atomEngineProgram: atomEngine.programId,
+              registryAuthority: registryAuthorityPda,
+              systemProgram: SystemProgram.programId,
+            })
+            .signers([pausedClient])
+            .rpc();
+          throw new Error("Expected paused error but transaction succeeded");
+        } catch (e: any) {
+          expect(e.toString()).to.include("Paused");
+        }
+
+        try {
+          await program.methods
+            .revokeFeedback(new anchor.BN(0), Array(32).fill(0))
+            .accountsPartial({
+              client: baselineClient.publicKey,
+              asset: agentAsset.publicKey,
+              agentAccount: agentPda,
+              atomConfig: atomConfigPda,
+              atomStats: atomStatsPda,
+              atomEngineProgram: atomEngine.programId,
+              registryAuthority: registryAuthorityPda,
+              systemProgram: SystemProgram.programId,
+            })
+            .signers([baselineClient])
+            .rpc();
+          throw new Error("Expected paused error but revoke succeeded");
+        } catch (e: any) {
+          expect(e.toString()).to.include("Paused");
+        }
+      } finally {
+        if (pausedEnabled) {
+          await atomEngine.methods
+            .updateConfig(
+              null, null, null, null, null, null, null, null, null, null,
+              null, null, null, null, false
+            )
+            .accounts({
+              authority: provider.wallet.publicKey,
+              config: atomConfigPda,
+            })
+            .rpc();
+        }
+      }
+
+      const config = await atomEngine.account.atomConfig.fetch(atomConfigPda);
       expect(config.paused).to.equal(false);
 
-      console.log(`  [PASS] D5: Engine paused=${config.paused} (pause check exists)`);
+      console.log("  [PASS] D5: Paused mode blocks feedback and revoke");
     });
 
     it("D6: should handle MAX feedback_count boundary", async () => {
