@@ -536,6 +536,16 @@ fn update_trust_tier(stats: &mut AtomStats, config: &AtomConfig) {
     stats.trust_tier = stats.tier_confirmed;
 }
 
+/// Recompute all derived metrics that depend on mutable state.
+/// Used by both normal feedback updates and revoke corrections.
+pub fn recompute_derived_metrics(stats: &mut AtomStats, config: &AtomConfig) {
+    let hll_est = hll_estimate(&stats.hll_packed);
+    stats.risk_score = calculate_risk(stats, hll_est, config);
+    stats.diversity_ratio = safe_div(hll_est.saturating_mul(255), stats.feedback_count.max(1)).min(255) as u8;
+    update_confidence(stats, hll_est, config);
+    update_trust_tier(stats, config);
+}
+
 // ============================================================================
 // Main Update Function (~4500 CU)
 // ============================================================================
@@ -665,16 +675,11 @@ pub fn update_stats(
     } else {
         false
     };
-    let hll_est = hll_estimate(&stats.hll_packed);
-
     // All updates
     let current_epoch = stats.current_epoch;
     update_ema(stats, score, slot_delta, config);
     update_quality(stats, score, hll_changed, slot_delta, current_epoch, current_slot, config);
-    stats.risk_score = calculate_risk(stats, hll_est, config);
-    stats.diversity_ratio = safe_div(hll_est.saturating_mul(255), stats.feedback_count.max(1)).min(255) as u8;
-    update_confidence(stats, hll_est, config);
-    update_trust_tier(stats, config);
+    recompute_derived_metrics(stats, config);
 
     hll_changed
 }

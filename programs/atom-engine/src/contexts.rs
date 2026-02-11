@@ -1,12 +1,11 @@
 use anchor_lang::prelude::*;
 
-use crate::state::{AtomConfig, AtomStats};
 use crate::error::AtomError;
+use crate::state::{AtomConfig, AtomStats};
 
 /// BPF Loader Upgradeable program ID (loader-v3)
 /// Defined locally to avoid deprecated bpf_loader_upgradeable module import.
-const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
-    pubkey!("BPFLoaderUpgradeab1e11111111111111111111111");
+const BPF_LOADER_UPGRADEABLE_ID: Pubkey = pubkey!("BPFLoaderUpgradeab1e11111111111111111111111");
 
 /// Initialize the ATOM config (upgrade authority only, once)
 /// SECURITY: Only the program deployer can initialize to prevent front-running
@@ -109,6 +108,8 @@ pub struct UpdateStats<'info> {
         mut,
         seeds = [b"atom_stats", asset.key().as_ref()],
         bump = stats.bump,
+        constraint = stats.asset == asset.key() @ AtomError::InvalidAsset,
+        constraint = stats.collection == collection.key() @ AtomError::CollectionMismatch,
     )]
     pub stats: Account<'info, AtomStats>,
 
@@ -160,6 +161,7 @@ pub struct RevokeStats<'info> {
         mut,
         seeds = [b"atom_stats", asset.key().as_ref()],
         bump = stats.bump,
+        constraint = stats.asset == asset.key() @ AtomError::InvalidAsset,
     )]
     pub stats: Account<'info, AtomStats>,
 
@@ -189,9 +191,7 @@ pub const ATOM_CPI_AUTHORITY_SEED: &[u8] = b"atom_cpi_authority";
 /// This is cryptographically secure - only agent-registry can sign with this PDA
 #[inline]
 pub fn is_valid_registry_authority(authority: &Pubkey, registry_program: &Pubkey) -> bool {
-    let (expected_pda, _bump) = Pubkey::find_program_address(
-        &[ATOM_CPI_AUTHORITY_SEED],
-        registry_program,
-    );
+    let (expected_pda, _bump) =
+        Pubkey::find_program_address(&[ATOM_CPI_AUTHORITY_SEED], registry_program);
     authority == &expected_pda
 }
