@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-atom_engine = "AToM1iKaniUCuWfHd5WQy5aLgJYWMiKq78NtNJmtzSXJ"
+atom_engine = "AToMufS4QD6hEXvcvBDg9m1AHeCLpmZQsyfYa5h9MwAF"
 
 [programs.localnet]
-atom_engine = "AToM1iKaniUCuWfHd5WQy5aLgJYWMiKq78NtNJmtzSXJ"
+atom_engine = "AToMufS4QD6hEXvcvBDg9m1AHeCLpmZQsyfYa5h9MwAF"
 
 [registry]
 url = "https://api.apr.dev"
@@ -50,6 +50,6 @@ address = "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
 
 # Agent Registry loaded as upgradeable program (needs programData PDA for initialize)
 [[test.genesis]]
-address = "8oo48pya1SZD23ZhzoNMhxR2UGb8BRa41Su4qP9EuaWm"
+address = "8oo4J9tBB3Hna1jRQ3rWvJjojqM5DYTDJo5cejUuJy3C"
 program = "target/deploy/agent_registry_8004.so"
 upgradeable = true

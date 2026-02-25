@@ -14,11 +14,11 @@ export const MPL_CORE_PROGRAM_ID = new PublicKey(
 );
 
 export const ATOM_ENGINE_PROGRAM_ID = new PublicKey(
-  "AToM1iKaniUCuWfHd5WQy5aLgJYWMiKq78NtNJmtzSXJ"
+  "AToMufS4QD6hEXvcvBDg9m1AHeCLpmZQsyfYa5h9MwAF"
 );
 
 export const REGISTRY_PROGRAM_ID = new PublicKey(
-  "8oo48pya1SZD23ZhzoNMhxR2UGb8BRa41Su4qP9EuaWm"
+  "8oo4J9tBB3Hna1jRQ3rWvJjojqM5DYTDJo5cejUuJy3C"
 );
 
 // ============================================================================

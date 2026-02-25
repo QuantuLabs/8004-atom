@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("AToM1iKaniUCuWfHd5WQy5aLgJYWMiKq78NtNJmtzSXJ");
+declare_id!("AToMufS4QD6hEXvcvBDg9m1AHeCLpmZQsyfYa5h9MwAF");
 
 /// Metaplex Core program ID
 pub const MPL_CORE_ID: Pubkey = pubkey!("CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d");
