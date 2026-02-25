@@ -549,20 +549,17 @@ pub fn push_caller_mrt(
     // Simplified: if the whole buffer cycle took < MRT_MIN_SLOTS, protect all entries
     let slots_since_base = current_slot.saturating_sub(*ring_base_slot);
 
-    // Calculate how old the entry at cursor position is
-    // Entry at cursor was written (24 - cursor) entries before the newest entry
-    // If cursor = 0, this entry is the oldest (written 24 entries ago)
+    // MRT gate enforces cycle pacing:
+    // progress through the ring must be proportional to elapsed slots.
+    // This keeps a full rotation at >= MRT_MIN_SLOTS under burst load.
     let cursor_pos = *cursor as usize;
-    let entries_behind = if cursor_pos == 0 { RING_BUFFER_SIZE } else { cursor_pos };
+    let cycle_progress_entries = if cursor_pos == 0 { RING_BUFFER_SIZE } else { cursor_pos };
 
-    // Estimate when this entry was written: base + (entries_behind / 24) * slots_since_base
-    // For MRT protection: entry is protected if age < MRT_MIN_SLOTS
-    // Since we're about to overwrite the oldest entry (cursor position),
-    // check if enough time has passed since we started this cycle
-    let min_cycle_time = (entries_behind as u64 * MRT_MIN_SLOTS) / RING_BUFFER_SIZE as u64;
-    let entry_is_young = slots_since_base < min_cycle_time && recent[cursor_pos] != 0;
+    let min_slots_for_progress =
+        (cycle_progress_entries as u64 * MRT_MIN_SLOTS) / RING_BUFFER_SIZE as u64;
+    let is_filling_too_fast = slots_since_base < min_slots_for_progress && recent[cursor_pos] != 0;
 
-    if entry_is_young {
+    if is_filling_too_fast {
         if *bypass_count >= MRT_MAX_BYPASS {
             // Bypass buffer full - drop incoming entry
             return (false, true);
