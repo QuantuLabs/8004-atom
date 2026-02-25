@@ -299,8 +299,8 @@ describe("ATOM Security Audit v2.5", () => {
       allFundedKeypairs.push(client);
       await fundKeypair(provider, client, 0.1 * LAMPORTS_PER_SOL);
 
-      // 201 chars = over limit
-      const longUri = "https://example.com/" + "x".repeat(181);
+      // >250 chars = over current MAX_URI_LENGTH
+      const longUri = "https://example.com/" + "x".repeat(300);
 
       try {
         await program.methods
@@ -408,8 +408,8 @@ describe("ATOM Security Audit v2.5", () => {
       allFundedKeypairs.push(client);
       await fundKeypair(provider, client, 0.1 * LAMPORTS_PER_SOL);
 
-      // Long endpoint (over 200)
-      const longEndpoint = "https://api.example.com/" + "x".repeat(180);
+      // >250 chars = over current MAX_URI_LENGTH
+      const longEndpoint = "https://api.example.com/" + "x".repeat(300);
 
       try {
         await program.methods
@@ -438,7 +438,10 @@ describe("ATOM Security Audit v2.5", () => {
           .rpc();
         throw new Error("Expected error but transaction succeeded");
       } catch (e: any) {
-        expect(e.toString()).to.include("UriTooLong");
+        const msg = e.toString();
+        expect(msg).to.satisfy((s: string) =>
+          s.includes("EndpointTooLong") || s.includes("UriTooLong")
+        );
       }
       console.log("  [PASS] A6: Endpoint length limit enforced");
     });
