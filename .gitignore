@@ -1,7 +1,6 @@
 # Anchor
 .anchor
 target/
-!target/deploy/atom_engine-keypair.json
 **/*.rs.bk
 programs/**/*.so
 
@@ -21,6 +20,8 @@ dist/
 test-ledger/
 .test-keypairs/
 .test-wallets.json
+test-wallets-backup.json
+keys/
 
 # IDE
 .vscode/
