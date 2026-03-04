@@ -1,8 +1,8 @@
 {
-  "address": "AToMufS4QD6hEXvcvBDg9m1AHeCLpmZQsyfYa5h9MwAF",
+  "address": "AToMw53aiPQ8j7iHVb4fGt6nzUNxUhcPc3tbPBZuzVVb",
   "metadata": {
     "name": "atom_engine",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "spec": "0.1.0",
     "description": "ATOM Engine - AI Agent Trust & Reputation Metrics for Solana"
   },
@@ -119,36 +119,36 @@
                 "value": [
                   140,
                   150,
-                  175,
-                  149,
-                  149,
-                  11,
-                  15,
-                  179,
-                  9,
-                  5,
-                  66,
-                  62,
-                  4,
-                  245,
-                  235,
-                  126,
-                  69,
-                  248,
-                  64,
-                  4,
-                  64,
-                  30,
-                  147,
-                  65,
-                  141,
-                  182,
+                  180,
+                  44,
+                  238,
+                  67,
+                  218,
+                  216,
+                  83,
+                  125,
+                  142,
+                  186,
+                  83,
+                  79,
+                  17,
+                  191,
+                  134,
+                  14,
+                  106,
+                  180,
+                  156,
+                  243,
+                  24,
                   28,
-                  245,
-                  197,
+                  159,
+                  190,
+                  196,
+                  11,
+                  83,
                   15,
-                  59,
-                  185
+                  90,
+                  18
                 ]
               }
             ],
@@ -1600,6 +1600,27 @@
             "name": "confidence",
             "docs": [
               "Confidence (0-10000)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "diversity_ratio",
+            "docs": [
+              "Diversity ratio (0-255)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "hll_changed",
+            "docs": [
+              "True if HLL register changed (likely a new unique client)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "loyalty_score",
+            "docs": [
+              "Loyalty score (0-65535)"
             ],
             "type": "u16"
           }

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("AToMufS4QD6hEXvcvBDg9m1AHeCLpmZQsyfYa5h9MwAF");
+declare_id!("AToMw53aiPQ8j7iHVb4fGt6nzUNxUhcPc3tbPBZuzVVb");
 
 /// Metaplex Core program ID
 pub const MPL_CORE_ID: Pubkey = pubkey!("CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d");
@@ -298,6 +298,9 @@ pub mod atom_engine {
             risk_score: stats.risk_score,
             quality_score: stats.quality_score,
             confidence: stats.confidence,
+            diversity_ratio: stats.diversity_ratio,
+            hll_changed,
+            loyalty_score: stats.loyalty_score,
         });
 
         // Return result for enriched events

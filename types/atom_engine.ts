@@ -5,10 +5,10 @@
  * IDL can be found at `target/idl/atom_engine.json`.
  */
 export type AtomEngine = {
-  "address": "AToMufS4QD6hEXvcvBDg9m1AHeCLpmZQsyfYa5h9MwAF",
+  "address": "AToMw53aiPQ8j7iHVb4fGt6nzUNxUhcPc3tbPBZuzVVb",
   "metadata": {
     "name": "atomEngine",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "spec": "0.1.0",
     "description": "ATOM Engine - AI Agent Trust & Reputation Metrics for Solana"
   },
@@ -125,36 +125,36 @@ export type AtomEngine = {
                 "value": [
                   140,
                   150,
-                  177,
-                  101,
-                  134,
-                  30,
-                  94,
-                  175,
-                  237,
-                  65,
-                  167,
-                  16,
-                  7,
-                  57,
-                  194,
-                  175,
-                  136,
-                  253,
-                  66,
-                  76,
-                  73,
-                  118,
-                  28,
-                  98,
-                  43,
-                  225,
-                  136,
-                  144,
-                  174,
                   180,
-                  99,
-                  169
+                  44,
+                  238,
+                  67,
+                  218,
+                  216,
+                  83,
+                  125,
+                  142,
+                  186,
+                  83,
+                  79,
+                  17,
+                  191,
+                  134,
+                  14,
+                  106,
+                  180,
+                  156,
+                  243,
+                  24,
+                  28,
+                  159,
+                  190,
+                  196,
+                  11,
+                  83,
+                  15,
+                  90,
+                  18
                 ]
               }
             ],
@@ -411,8 +411,8 @@ export type AtomEngine = {
       "name": "updateConfig",
       "docs": [
         "Update config parameters (authority only)",
-        "NOTE: compute.rs currently uses compile-time params; config is metadata-only until wired.",
-        "SECURITY: Added parameter bounds validation"
+        "Config values are passed to compute::update_stats() at runtime.",
+        "Compile-time defaults in params.rs are used only for initialization."
       ],
       "discriminator": [
         29,
@@ -1606,6 +1606,27 @@ export type AtomEngine = {
             "name": "confidence",
             "docs": [
               "Confidence (0-10000)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "diversityRatio",
+            "docs": [
+              "Diversity ratio (0-255)"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "hllChanged",
+            "docs": [
+              "True if HLL register changed (likely a new unique client)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "loyaltyScore",
+            "docs": [
+              "Loyalty score (0-65535)"
             ],
             "type": "u16"
           }

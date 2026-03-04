@@ -17,6 +17,12 @@ pub struct StatsUpdated {
     pub quality_score: u16,
     /// Confidence (0-10000)
     pub confidence: u16,
+    /// Diversity ratio (0-255)
+    pub diversity_ratio: u8,
+    /// True if HLL register changed (likely a new unique client)
+    pub hll_changed: bool,
+    /// Loyalty score (0-65535)
+    pub loyalty_score: u16,
 }
 
 /// Emitted when config is initialized
